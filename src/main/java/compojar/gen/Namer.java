@@ -12,7 +12,7 @@ public class Namer {
     private final String enclosingAstTypeSimpleName;
     private final String enclosingApiImplTypeSimpleName;
 
-    private long counter = 0;
+    private long counter = 71;
 
     public Namer(final String langName, final String pkgName) {
         this.langName = langName;
@@ -72,6 +72,10 @@ public class Namer {
 
     public String randomName() {
         return "G" + (counter++);
+    }
+
+    public String randomName(CharSequence name) {
+        return name.toString() + "_RND" + (counter++);
     }
 
     public CharSequence normalisedTerminalName(final Terminal t) {

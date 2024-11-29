@@ -4,6 +4,7 @@ import compojar.util.Util;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.function.Function;
 
 import static java.util.stream.Collectors.joining;
 
@@ -11,6 +12,10 @@ public record Selection (Variable lhs, List<Variable> rhs) implements Rule {
 
     public static Selection selection(Variable lhs, Variable rhs0, Variable... rhs) {
         return new Selection(lhs, Util.list(rhs0, rhs));
+    }
+
+    public Selection updateRhs(Function<? super List<Variable>, List<Variable>> fn) {
+        return new Selection(lhs, fn.apply(rhs));
     }
 
     @Override

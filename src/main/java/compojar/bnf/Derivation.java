@@ -2,6 +2,7 @@ package compojar.bnf;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import static java.util.stream.Collectors.joining;
 
@@ -13,6 +14,10 @@ public record Derivation (Variable lhs, List<Symbol> rhs) implements Rule {
 
     public static Derivation derivation(Variable lhs, List<? extends Symbol> rhs) {
         return new Derivation(lhs, new ArrayList<>(rhs));
+    }
+
+    public Derivation updateRhs(Function<? super List<Symbol>, List<Symbol>> fn) {
+        return new Derivation(lhs, fn.apply(rhs));
     }
 
     @Override

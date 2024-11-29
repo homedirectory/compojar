@@ -260,6 +260,10 @@ public final class Util {
         return xs.subList(0, xs.size() - n);
     }
 
+    public static <X, Y> Y reduce(Stream<X> xs, Y init, BiFunction<Y, ? super X, Y> fn) {
+        return xs.reduce(init, fn, ($1, $2) -> {throw new UnsupportedOperationException("No combiner.");});
+    }
+
     // public static <X, Y> Stream<T2<X, Y>> zip(Iterable<X> xs, Iterable<Y> ys) {
     //
     // }
