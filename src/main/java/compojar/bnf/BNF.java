@@ -8,12 +8,37 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static compojar.util.Util.contentEquals;
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toSet;
+import static compojar.util.Util.removeAll;
+import static java.lang.String.format;
+import static java.util.Comparator.comparing;
+import static java.util.stream.Collectors.*;
 
 // TODO enhance with metadata:
 // * names for fields of AST nodes
 public record BNF (Set<Terminal> terminals, Set<Variable> variables, Set<Rule> rules, Variable start) {
+
+    public BNF {
+        validateRules(rules, start);
+    }
+
+    private static void validateRules(final Set<Rule> rules, final Variable start) {
+        if (rules.stream().noneMatch(rule -> start.equals(rule.lhs()))) {
+            throw new IllegalArgumentException("Missing a rule for the start variable %s".formatted(start));
+        }
+
+        final var illegalRules = rules.stream()
+                .collect(collectingAndThen(groupingBy(Rule::lhs),
+                                           map -> removeAll(map, (lhs, rs) -> rs.size() > 1)
+                                                   .values().stream()
+                                                   .flatMap(Collection::stream)
+                                                   .sorted(comparing(Rule::lhs))
+                                                   .toList()));
+        if (!illegalRules.isEmpty()) {
+            throw new IllegalArgumentException(
+                    format("BNF cannot contain multiple rules for the same LHS. Invalid rules:\n%s",
+                           illegalRules.stream().map(Objects::toString).collect(joining("\n"))));
+        }
+    }
 
     public BNF(Collection<Rule> rules, Variable start) {
         this(allTerminals(rules), allVariables(rules), new LinkedHashSet<>(rules), start);
@@ -68,7 +93,7 @@ public record BNF (Set<Terminal> terminals, Set<Variable> variables, Set<Rule> r
     @Override
     public String toString() {
         return rules.stream()
-                .sorted(Comparator.comparing(r -> r.lhs().name().toString()))
+                .sorted(comparing(r -> r.lhs().name().toString()))
                 .map(Objects::toString)
                 .collect(joining("\n"));
     }
@@ -150,8 +175,8 @@ public record BNF (Set<Terminal> terminals, Set<Variable> variables, Set<Rule> r
         }
 
         // Not fully accurate if there are unused rules.
-        var rulesIter = rules.stream().sorted(Comparator.comparing(Rule::lhs)).iterator();
-        var theirRulesIter = bnf.rules.stream().sorted(Comparator.comparing(Rule::lhs)).iterator();
+        var rulesIter = rules.stream().sorted(comparing(Rule::lhs)).iterator();
+        var theirRulesIter = bnf.rules.stream().sorted(comparing(Rule::lhs)).iterator();
         while (rulesIter.hasNext() && theirRulesIter.hasNext()) {
            if (!rulesIter.next().semanticEquals(theirRulesIter.next()))
                return false;

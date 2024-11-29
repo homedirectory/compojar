@@ -166,6 +166,12 @@ public final class Util {
         return unmodifiableMap(newMap);
     }
 
+    public static <K, V> Map<K, V> removeAll(final Map<K, V> map, final BiPredicate<? super K, ? super V> test) {
+        return map.entrySet().stream()
+                .filter(entry -> test.test(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
     public static <X> Optional<T2<X, Integer>> findWithIndex(final List<X> xs, final Predicate<? super X> test) {
         for (int i = 0; i < xs.size(); i++) {
             if (test.test(xs.get(i))) {
