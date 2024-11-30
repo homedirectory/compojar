@@ -1,5 +1,6 @@
 package compojar.bnf;
 
+import com.squareup.javapoet.TypeName;
 import compojar.gen.Namer;
 import compojar.gen.ParserInfo;
 import compojar.util.T2;
@@ -14,6 +15,7 @@ import static compojar.bnf.Symbol.variable;
 import static compojar.util.T2.t2;
 import static compojar.util.Util.*;
 import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toSet;
 
 /**
  * Performs left-factoring on a BNF, which results in elimination of all common prefixes.
@@ -80,11 +82,19 @@ public class LeftFactoring {
                                                     Optional.ofNullable(rewritten.get(r.lhs()))
                                                             .map(pair -> pair.map((maybeFull, partial) -> Stream.concat(maybeFull.stream(), Stream.of(partial))))
                                                             .orElseGet(Stream::empty)))
-                        .collect(Collectors.toSet()));
+                        .collect(toSet()));
+
+        // If the common prefix symbol is a parameterised terminal, then its parameters should be propagated by partial parsers.
+        final var parameters = switch (commonPrefix.symbol) {
+            case Terminal t when t.hasParameters() -> t.getParameters();
+            default -> List.<Parameter>of();
+        };
 
         final var ruleO_parserInfo = astMetadata.requireParserInfo(startVar);
-        // TODO components
-        final var ruleOk_parserInfo = new ParserInfo.PartialS(astMetadata.requireParserInfo(startVar).requireAstNodeName(), Set.of());
+        final var ruleOk_parserInfo = new ParserInfo.PartialS(
+                astMetadata.requireParserInfo(startVar).requireAstNodeName(),
+                Set.of(),
+                parameters.stream().map(p -> TypeName.get(p.type())).toList());
 
         final var rewritten_parserInfoMap = reduce(
                 rewritten.keySet(),
@@ -94,8 +104,7 @@ public class LeftFactoring {
                     var varParserInfo = astMetadata.requireParserInfo(var);
                     Map<Variable, ParserInfo> addedParserInfos = new HashMap<>();
 
-                    // TODO Implement when terminals become representable in the AST.
-                    var rpParserInfo = withAddedComponents(bnf.requireRuleFor(var), varParserInfo, Set.of());
+                    var rpParserInfo = withAddedParameters(bnf.requireRuleFor(var), varParserInfo, parameters);
                     addedParserInfos.put(pair.snd().lhs(), rpParserInfo);
 
                     pair.fst().ifPresent(rf -> addedParserInfos.put(rf.lhs(), varParserInfo));
@@ -118,17 +127,18 @@ public class LeftFactoring {
     /**
      * @param rule
      * @param info  parser info associated with {@code rule}
-     * @param components
      */
-    private ParserInfo withAddedComponents(Rule rule, ParserInfo info, Set<Object> components) {
-        // TODO components
+    private ParserInfo withAddedParameters(Rule rule, ParserInfo info, List<Parameter> parameters) {
+        var paramTypeNames = parameters.stream().map(Parameter::type).map(TypeName::get).toList();
+        var paramNames = parameters.stream().map(Parameter::name).map(CharSequence::toString).toList();
+        var paramPairs = zip(paramTypeNames, paramNames).toList();
         return switch (info) {
             case ParserInfo.Full full -> switch (rule) {
-                case Derivation $ -> new ParserInfo.PartialD(full.astNode(), Set.of());
-                case Selection $ -> new ParserInfo.PartialS(full.astNode(), Set.of());
+                case Derivation $ -> new ParserInfo.PartialD(full.astNode(), Set.of(), paramPairs);
+                case Selection $ -> new ParserInfo.PartialS(full.astNode(), Set.of(), paramTypeNames);
             };
-            case ParserInfo.PartialD d -> new ParserInfo.PartialD(d.astNode(), Set.of());
-            case ParserInfo.PartialS s -> new ParserInfo.PartialS(s.astNode(), Set.of());
+            case ParserInfo.PartialD d -> new ParserInfo.PartialD(d.astNode(), Set.of(), paramPairs);
+            case ParserInfo.PartialS s -> new ParserInfo.PartialS(s.astNode(), Set.of(), paramTypeNames);
             default -> throw new IllegalStateException(String.format("Unexpected parser info: %s", info));
         };
     }

@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static compojar.util.T2.t2;
 import static java.util.Collections.*;
 
 public final class Util {
@@ -175,7 +176,7 @@ public final class Util {
     public static <X> Optional<T2<X, Integer>> findWithIndex(final List<X> xs, final Predicate<? super X> test) {
         for (int i = 0; i < xs.size(); i++) {
             if (test.test(xs.get(i))) {
-                return Optional.of(T2.t2(xs.get(i), i));
+                return Optional.of(t2(xs.get(i), i));
             }
         }
         return Optional.empty();
@@ -185,7 +186,7 @@ public final class Util {
     public static <X> Optional<T2<X, Integer>> findWithIndex2(final List<X> xs, final BiPredicate<? super X, ? super Integer> test) {
         for (int i = 0; i < xs.size(); i++) {
             if (test.test(xs.get(i), i)) {
-                return Optional.of(T2.t2(xs.get(i), i));
+                return Optional.of(t2(xs.get(i), i));
             }
         }
         return Optional.empty();
@@ -284,6 +285,28 @@ public final class Util {
         }
 
         return acc;
+    }
+
+    public static <X, Y> Stream<T2<X, Y>> zip(Collection<X> xs, Collection<Y> ys) {
+        var iter = new Iterator<T2<X, Y>>() {
+            final Iterator<X> xsIter = xs.iterator();
+            final Iterator<Y> ysIter = ys.iterator();
+
+            @Override
+            public boolean hasNext() {
+                return xsIter.hasNext() && ysIter.hasNext();
+            }
+
+            @Override
+            public T2<X, Y> next() {
+                if (!hasNext())
+                    throw new NoSuchElementException();
+
+                return t2(xsIter.next(), ysIter.next());
+            }
+        };
+
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, 0), false);
     }
 
     public static <X> Stream<List<X>> zipAll(Collection<List<X>> lists) {

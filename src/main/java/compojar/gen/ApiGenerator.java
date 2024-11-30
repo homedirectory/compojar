@@ -1,6 +1,7 @@
 package compojar.gen;
 
 import com.squareup.javapoet.*;
+import compojar.bnf.Parameter;
 import compojar.stack.Rule;
 import compojar.stack.StackMachine;
 import compojar.stack.Symbol;
@@ -106,11 +107,18 @@ public class ApiGenerator {
                 .filter(rule -> rule.reads() != empty)
                 .forEach(rule -> builder.addMethod(
                         methodBuilder(rule.reads().toString())
+                                .addParameters(buildParameters(rule.reads().parameters()))
                                 .returns(rule.pushes().isEmpty() ? K : makeParameterisedType(rule.pushes()))
                                 .addModifiers(PUBLIC, ABSTRACT)
                                 .build()));
 
         return builder.build();
+    }
+
+    private List<ParameterSpec> buildParameters(List<Parameter> parameters) {
+        return parameters.stream()
+                .map(p -> ParameterSpec.builder(p.type(), p.name().toString()).build())
+                .toList();
     }
 
     private Set<Rule> adaptRules(final Set<Rule> rules) {
