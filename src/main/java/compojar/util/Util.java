@@ -11,6 +11,8 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static compojar.util.T2.t2;
+import static java.lang.Character.isUpperCase;
+import static java.lang.Character.toLowerCase;
 import static java.util.Collections.*;
 
 public final class Util {
@@ -196,6 +198,21 @@ public final class Util {
         var newList = new ArrayList<X>(xs);
         newList.set(idx, item);
         return unmodifiableList(newList);
+    }
+
+    public static String decapitalise(CharSequence name) {
+        if (name.isEmpty()) {
+            return "";
+        }
+        else if (isUpperCase(name.charAt(0))) {
+            var sb = new StringBuilder(name.length());
+            sb.append(toLowerCase(name.charAt(0)));
+            sb.append(name, 1, name.length());
+            return sb.toString();
+        }
+        else {
+            return name.toString();
+        }
     }
 
     @FunctionalInterface

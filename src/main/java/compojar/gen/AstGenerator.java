@@ -13,6 +13,7 @@ import java.util.stream.Stream;
 
 import static compojar.util.JavaPoet.interfaceBuilder;
 import static compojar.util.T2.t2;
+import static compojar.util.Util.decapitalise;
 import static compojar.util.Util.enumeratedStream;
 import static java.util.stream.Collectors.toMap;
 import static javax.lang.model.element.Modifier.*;
@@ -79,11 +80,12 @@ public class AstGenerator {
                         nodeClassName,
                         enumeratedStream(derivation.rhs().stream(),
                                          (v, i) -> switch (v) {
+                                             // TODO ensure there are no name conflicts
                                              case Terminal terminal when terminal.hasParameters() ->
                                                      terminal.getParameters().stream()
                                                              .map(param -> FieldSpec.builder(param.type(), param.name().toString(), PRIVATE, FINAL).build());
                                              case Variable variable ->
-                                                     Stream.of(FieldSpec.builder(classNameForNode(variable), variable.toString().toLowerCase() + i).build());
+                                                     Stream.of(FieldSpec.builder(classNameForNode(variable), decapitalise(variable.name())).build());
                                              default -> Stream.<FieldSpec>of();
                                          })
                                 .flatMap(Function.identity())
