@@ -28,7 +28,7 @@ public record BNF (Set<Terminal> terminals, Set<Variable> variables, Set<Rule> r
 
         final var illegalRules = rules.stream()
                 .collect(collectingAndThen(groupingBy(Rule::lhs),
-                                           map -> removeAll(map, (lhs, rs) -> rs.size() > 1)
+                                           map -> removeAll(map, (lhs, rs) -> rs.size() <= 1)
                                                    .values().stream()
                                                    .flatMap(Collection::stream)
                                                    .sorted(Rule.compareByLhs)

@@ -168,7 +168,7 @@ public final class Util {
 
     public static <K, V> Map<K, V> removeAll(final Map<K, V> map, final BiPredicate<? super K, ? super V> test) {
         return map.entrySet().stream()
-                .filter(entry -> test.test(entry.getKey(), entry.getValue()))
+                .filter(entry -> !test.test(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
