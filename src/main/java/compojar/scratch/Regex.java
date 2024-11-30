@@ -8,29 +8,26 @@ import java.util.Set;
 
 import static compojar.bnf.Rule.derivation;
 import static compojar.bnf.Rule.selection;
-import static compojar.bnf.Symbol.terminal;
-import static compojar.bnf.Symbol.variable;
+import static compojar.scratch.Regex.T.*;
+import static compojar.scratch.Regex.V.*;
 
 public interface Regex {
 
-    Terminal a = terminal("a"),
-            begin = terminal("begin"),
-            end = terminal("end"),
-            zeroOrMore = terminal("zeroOrMore"),
-            optional = terminal("optional"),
-            $ = terminal("$")
-            ;
+    enum T implements Terminal {
+        a, begin, end, zeroOrMore, optional, $
+    }
 
-    Variable Term = variable("Term"),
-            ExprList = variable("ExprList"),
-            ExprCons = variable("ExprCons"),
-            Nil = variable("Nil"),
-            Str = variable("Str"),
-            Group = variable("Group"),
-            QuantifiedTerm = variable("QuantifiedTerm"),
-            ZeroOrMore = variable("ZeroOrMore"),
-            Optional = variable("Optional")
-                    ;
+    enum V implements Variable {
+        Term,
+        ExprList,
+        ExprCons,
+        Nil,
+        Str,
+        Group,
+        QuantifiedTerm,
+        ZeroOrMore,
+        Optional,
+    }
 
     BNF bnf_lr = new BNF(Set.of(selection(ExprList, Nil, ExprCons),
                                 derivation(ExprCons, Term, ExprList),

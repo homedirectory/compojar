@@ -3,8 +3,11 @@ package compojar.bnf;
 import compojar.util.Util;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
+
+import static java.util.Comparator.comparing;
 
 public sealed interface Rule permits Derivation, Selection {
 
@@ -19,6 +22,8 @@ public sealed interface Rule permits Derivation, Selection {
     static Selection selection(Variable lhs, Variable rhs0, Variable... rhs) {
         return new Selection(lhs, Util.list(rhs0, rhs));
     }
+
+    Comparator<Rule> compareByLhs = comparing(Rule::lhs, Variable.comparator);
 
     Variable lhs();
 

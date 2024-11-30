@@ -31,7 +31,7 @@ public record BNF (Set<Terminal> terminals, Set<Variable> variables, Set<Rule> r
                                            map -> removeAll(map, (lhs, rs) -> rs.size() > 1)
                                                    .values().stream()
                                                    .flatMap(Collection::stream)
-                                                   .sorted(comparing(Rule::lhs))
+                                                   .sorted(Rule.compareByLhs)
                                                    .toList()));
         if (!illegalRules.isEmpty()) {
             throw new IllegalArgumentException(
@@ -175,8 +175,8 @@ public record BNF (Set<Terminal> terminals, Set<Variable> variables, Set<Rule> r
         }
 
         // Not fully accurate if there are unused rules.
-        var rulesIter = rules.stream().sorted(comparing(Rule::lhs)).iterator();
-        var theirRulesIter = bnf.rules.stream().sorted(comparing(Rule::lhs)).iterator();
+        var rulesIter = rules.stream().sorted(Rule.compareByLhs).iterator();
+        var theirRulesIter = bnf.rules.stream().sorted(Rule.compareByLhs).iterator();
         while (rulesIter.hasNext() && theirRulesIter.hasNext()) {
            if (!rulesIter.next().semanticEquals(theirRulesIter.next()))
                return false;

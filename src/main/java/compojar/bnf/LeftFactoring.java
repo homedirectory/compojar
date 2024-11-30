@@ -210,7 +210,7 @@ public class LeftFactoring {
     private Optional<CommonPrefix> findFirstCommonPrefix(BNF bnf) {
         return bnf.rules().stream()
                 // Sort to enable determinism.
-                .sorted(Comparator.comparing(Rule::lhs))
+                .sorted(Rule.compareByLhs)
                 .filter(r -> r instanceof Selection)
                 .map(r -> (Selection) r)
                 .map(r -> findFirstCommonPrefix(r, bnf))

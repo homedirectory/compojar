@@ -2,7 +2,10 @@ package compojar.bnf;
 
 import java.util.Optional;
 
-public sealed interface Symbol extends CharSequence, Comparable<Symbol> permits Terminal, Variable {
+public sealed interface Symbol
+        extends CharSequence
+        permits Terminal, Variable
+{
 
     static Terminal terminal(CharSequence name) {
         return new StandardTerminal(name);
@@ -41,11 +44,6 @@ public sealed interface Symbol extends CharSequence, Comparable<Symbol> permits 
     @Override
     default CharSequence subSequence(int start, int end) {
         return name().subSequence(start, end);
-    }
-
-    @Override
-    default int compareTo(Symbol s) {
-        return name().toString().compareTo(s.name().toString());
     }
 
 }
