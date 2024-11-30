@@ -53,7 +53,7 @@ public class Generator {
         }
     }
 
-    public void generate(Path outputDirectory) throws IOException {
+    public void generate(Path outputDirectory) {
         new AstGenerator(namer, bnf).generate()
                 .run((astJavaFile, _astMetadata) -> {
                     var _canonicalBnf = bnf;
@@ -122,7 +122,7 @@ public class Generator {
                         System.out.println("// API Implementation");
                         System.out.println(apiImplCode);
 
-                        Path destPath = Path.of("src/test/generated-sources/").toAbsolutePath();
+                        Path destPath = outputDirectory.toAbsolutePath();
 
                         try {
                             Files.createDirectories(destPath);
