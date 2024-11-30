@@ -1,16 +1,36 @@
 package compojar.stack;
 
+import compojar.bnf.Parameter;
+import compojar.bnf.Terminal;
+import compojar.bnf.Variable;
+
+import java.util.List;
+
 public interface Symbol extends CharSequence  {
 
-    Symbol empty = new StandardSymbol("<empty>");
+    Symbol empty = symbol("<empty>");
 
     static Symbol symbol(CharSequence name) {
-        var trueName = name instanceof compojar.bnf.Symbol s ? s.name() : name;
-        return new StandardSymbol(trueName);
+        return new SymbolRecord(name, List.of());
+    }
+
+    static Symbol symbol(compojar.bnf.Symbol bnfSymbol) {
+        return switch (bnfSymbol) {
+            case Terminal terminal -> new SymbolRecord(terminal.name(), terminal.getParameters());
+            case Variable variable -> new SymbolRecord(variable.name(), List.of());
+        };
     }
 
     default CharSequence name() {
         return this instanceof Enum<?> e ? e.name() : toString();
+    }
+
+    default List<Parameter> parameters() {
+        return List.of();
+    }
+
+    default boolean hasParameters() {
+        return !parameters().isEmpty();
     }
 
     @Override
