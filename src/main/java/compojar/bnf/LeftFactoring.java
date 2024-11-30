@@ -93,7 +93,6 @@ public class LeftFactoring {
         final var ruleO_parserInfo = astMetadata.requireParserInfo(startVar);
         final var ruleOk_parserInfo = new ParserInfo.PartialS(
                 astMetadata.requireParserInfo(startVar).requireAstNodeName(),
-                Set.of(),
                 parameters.stream().map(p -> TypeName.get(p.type())).toList());
 
         final var rewritten_parserInfoMap = reduce(
@@ -134,11 +133,11 @@ public class LeftFactoring {
         var paramPairs = zip(paramTypeNames, paramNames).toList();
         return switch (info) {
             case ParserInfo.Full full -> switch (rule) {
-                case Derivation $ -> new ParserInfo.PartialD(full.astNode(), Set.of(), paramPairs);
-                case Selection $ -> new ParserInfo.PartialS(full.astNode(), Set.of(), paramTypeNames);
+                case Derivation $ -> new ParserInfo.PartialD(full.astNode(), paramPairs);
+                case Selection $ -> new ParserInfo.PartialS(full.astNode(), paramTypeNames);
             };
-            case ParserInfo.PartialD d -> new ParserInfo.PartialD(d.astNode(), Set.of(), paramPairs);
-            case ParserInfo.PartialS s -> new ParserInfo.PartialS(s.astNode(), Set.of(), paramTypeNames);
+            case ParserInfo.PartialD d -> new ParserInfo.PartialD(d.astNode(), paramPairs);
+            case ParserInfo.PartialS s -> new ParserInfo.PartialS(s.astNode(), paramTypeNames);
             default -> throw new IllegalStateException(String.format("Unexpected parser info: %s", info));
         };
     }

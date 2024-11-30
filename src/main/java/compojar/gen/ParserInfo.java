@@ -7,7 +7,6 @@ import compojar.util.T2;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static java.lang.String.format;
 
@@ -50,10 +49,9 @@ public sealed interface ParserInfo {
      * Partial parser of a selection rule.
      *
      * @param astNode
-     * @param components  type names of components that need to be supplied externally
      * @param parameters  type names of parameters that need to be supplied externally
      */
-    record PartialS (ClassName astNode, Set<ClassName> components, List<TypeName> parameters) implements ParserInfo {
+    record PartialS (ClassName astNode, List<TypeName> parameters) implements ParserInfo {
         @Override
         public Optional<ClassName> maybeAstNodeName() {
             return Optional.of(astNode);
@@ -69,16 +67,15 @@ public sealed interface ParserInfo {
      * Partial parser of a derivation rule.
      *
      * @param astNode
-     * @param components  names of components that need to be supplied externally
      * @param parameters  types and names of parameters that need to be supplied externally
      * @param implicitVar  optional, name of an AST node implicitly parsed by this parser.
      *                         <p> Is present only if the first variable in the RHS of this rule derives an empty string.
      *                         Implicit parsing of abstract AST nodes is not supported (i.e., when the first variable in the RHS is a selection).
      */
-    record PartialD (ClassName astNode, Set<String> components, List<T2<TypeName, String>> parameters, Optional<Variable> implicitVar) implements ParserInfo {
+    record PartialD (ClassName astNode, List<T2<TypeName, String>> parameters, Optional<Variable> implicitVar) implements ParserInfo {
 
-        public PartialD(ClassName astNode, Set<String> components, List<T2<TypeName, String>> parameters) {
-            this(astNode, components, parameters, Optional.empty());
+        public PartialD(ClassName astNode, List<T2<TypeName, String>> parameters) {
+            this(astNode, parameters, Optional.empty());
         }
 
         @Override
@@ -90,7 +87,7 @@ public sealed interface ParserInfo {
             implicitVar.ifPresent(it -> {
                 throw new IllegalStateException(format("Implicit AST node is already present in this parser: %s", it));
             });
-            return new PartialD(astNode, components, parameters, Optional.of(value));
+            return new PartialD(astNode, parameters, Optional.of(value));
         }
     }
 
