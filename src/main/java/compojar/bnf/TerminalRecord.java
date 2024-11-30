@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Objects;
 
 import static compojar.util.Util.append;
-import static java.util.stream.Collectors.joining;
+import static compojar.util.Util.removeAll;
+import static java.lang.String.format;
+import static java.util.stream.Collectors.*;
 
 final class TerminalRecord implements Terminal {
 
@@ -13,6 +15,15 @@ final class TerminalRecord implements Terminal {
     private final List<Parameter> parameters;
 
     TerminalRecord(CharSequence name, List<Parameter> parameters) {
+        var dupNames = parameters.stream()
+                .collect(collectingAndThen(groupingBy(Parameter::name),
+                                           map -> removeAll(map, ($, ps) -> ps.size() < 2).keySet()));
+        if (!dupNames.isEmpty()) {
+            throw new IllegalArgumentException(format("Parameters with duplicate names are disallowed: %s(%s)",
+                                                      name,
+                                                      parameters.stream().map("%s"::formatted).collect(joining(", "))));
+        }
+
         this.name = name;
         this.parameters = parameters;
     }
@@ -47,7 +58,7 @@ final class TerminalRecord implements Terminal {
 
     @Override
     public String toString() {
-        return String.format("%s%s",
+        return format("%s%s",
                              name,
                              parameters.isEmpty()
                                      ? ""
