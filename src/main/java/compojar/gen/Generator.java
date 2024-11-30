@@ -11,11 +11,14 @@ import compojar.util.T2;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static compojar.util.JavaPoet.getInnerTypeRecursively;
+import static java.lang.String.format;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 public class Generator {
@@ -25,7 +28,19 @@ public class Generator {
 
     public Generator(final Namer namer, final BNF bnf) {
         this.namer = namer;
-        this.bnf = bnf;
+        this.bnf = validateBnf(bnf);
+    }
+
+    private static BNF validateBnf(BNF bnf) {
+        var emptyRules = bnf.rules().stream()
+                .filter(r -> r.rhs().isEmpty())
+                .toList();
+        if (!emptyRules.isEmpty()) {
+            throw new IllegalArgumentException(format("Rules with empty RHS are disallowed. Illegal rules:\n%s",
+                                                      emptyRules.stream().map(Objects::toString).collect(joining("\n"))));
+        }
+
+        return bnf;
     }
 
     public void generate(Path outputDirectory) throws IOException {
@@ -38,7 +53,11 @@ public class Generator {
                         _astMetadata = termNormResult.snd();
                     }
 
-                    _canonicalBnf = new EmptyProductionElimination(namer).apply(_canonicalBnf);
+                    {
+                        var result = new EmptyProductionElimination(namer).apply(_canonicalBnf, _astMetadata);
+                        _canonicalBnf = result.map(T2::fst).orElse(_canonicalBnf);
+                        _astMetadata = result.map(T2::snd).orElse(_astMetadata);
+                    }
 
                     {
                         var leftFactorResult = new LeftFactoring(namer).apply(new LeftFactoring.Data(_canonicalBnf, _astMetadata));
@@ -46,7 +65,11 @@ public class Generator {
                         _astMetadata = leftFactorResult.astMetadata();
                     }
 
-                    _canonicalBnf = new EmptyProductionElimination(namer).apply(_canonicalBnf);
+                    {
+                        var result = new EmptyProductionElimination(namer).apply(_canonicalBnf, _astMetadata);
+                        _canonicalBnf = result.map(T2::fst).orElse(_canonicalBnf);
+                        _astMetadata = result.map(T2::snd).orElse(_astMetadata);
+                    }
 
                     final var canonicalBNF = _canonicalBnf;
                     final var astMetadata = _astMetadata;

@@ -139,18 +139,15 @@ public class ApiImplGenerator {
 
         // 2. Fields for components that should be supplied.
         final List<FieldSpec> componentFields = switch (interDesc.parserInfo()) {
-            case ParserInfo.PartialD (var astNodeName, var componentNames) -> {
-                final var astNode = requireAstNode(astNodeName);
+            case ParserInfo.PartialD d -> {
+                final var astNode = requireAstNode(d.astNode());
                 // Declare fields for all components of the corresponding AST node that should be supplied.
-                yield componentNames.stream()
+                yield d.components().stream()
                         .map(c -> {
                             final var fieldSpec = JavaPoet.getField(astNode, c);
                             return FieldSpec.builder(fieldSpec.type, c, PRIVATE, FINAL).build();
                         })
                         .toList();
-            }
-            case ParserInfo.PartialEmpty (var astNodeName) -> {
-                yield List.of(FieldSpec.builder(astNodeName, namer.emptyParserFieldName(), PRIVATE, FINAL).build());
             }
             case ParserInfo.PartialS (var astNodeName, var componentTypeNames) -> {
                 // Declare fields for all components of the corresponding AST node that should be supplied.
@@ -179,15 +176,16 @@ public class ApiImplGenerator {
                 switch (derivation.rhs().getFirst()) {
                     // If the right-hand side of the rule starts with a terminal, then declare a method for that terminal.
                     case Terminal terminal -> {
+                        var rhsRest = subList(derivation.rhs(), 1);
                         var astNodeType = requireAstNodeFor(inter);
                         builder.addMethod(methodBuilder(terminal.name().toString())
                                                   .addModifiers(PUBLIC)
-                                                  .returns(parameterisedFold(subList(derivation.rhs(), 1), typeVar))
+                                                  .returns(parameterisedFold(rhsRest, typeVar))
                                                   .addStatement(CodeBlock.of("return $L",
                                                                              parserCode(interDesc,
                                                                                         namer.astNodeClassName(astNodeType.name),
                                                                                         componentFields.stream().map(f -> f.name).toList(),
-                                                                                        subList(derivation.rhs(), 1))))
+                                                                                        rhsRest)))
                                                   .build());
                     }
                     // Otherwise, extend C_j, where C_j is the implementation type corresponding to the first symbol in the right-hand side.
@@ -249,30 +247,76 @@ public class ApiImplGenerator {
         return builder.build();
     }
 
+    /**
+     * Constructs a parsing expression for an interface implementation.
+     *
+     * @param interDesc  description of the interface being implemeneted
+     * @param astNodeName  name of the AST node produced by this parser
+     * @param componentFieldNames  names of component fields declared in this parser implementation
+     * @param rhs  part of the rule's RHS that represents the continuation, which implicitly ends with type variable K
+     */
     private CodeBlock parserCode(InterfaceDescription interDesc, ClassName astNodeName, List<String> componentFieldNames, List<Symbol> rhs) {
         return parserCode(interDesc, astNodeName, componentFieldNames, rhs, List.of());
     }
 
+    /**
+     * @param localVars  local variables introduced in the parsing expression so far
+     */
     private CodeBlock parserCode(InterfaceDescription interDesc, ClassName astNodeName, List<String> componentFieldNames, List<Symbol> rhs, List<String> localVars) {
-        return parserCode_(interDesc,
-                           astNodeName,
-                           componentFieldNames,
-                           rhs.stream().map(s -> (Variable) s).map(this::interfaceForVariable).map(inter -> namer.fluentInterfaceClassName(inter.name)).toList(),
-                           localVars);
+        var nextInterNames = rhs.stream()
+                .map(s -> (Variable) s).map(this::interfaceForVariable)
+                .map(inter -> namer.fluentInterfaceClassName(inter.name))
+                .toList();
+        return interDesc.parserInfo().implicitVar().map(implicitVar -> {
+                    // Local variable for the implicitly parsed node needs to be prepended to the list of all local variables
+                    // because the parsing order may be slightly reversed if this expression is inside super().
+                    // This is because the first local variable in super() corresponds to an RHS symbol that comes after the implicit variable.
+                    // For example, given the following rewritten grammar:
+                    // A -> C
+                    // B -> empty
+                    // Here the original RHS for A was 'B C', so now A implicitly parses B.
+                    // Then, the parser for A extends the parser for C, resulting in the following code:
+                    /*
+                    class A<K> extends C<K> {
+                        Function<? super Node.A, K> k;
+                        A(Function<? super Node.A, K> k) {
+                            super(c -> new B<>(b -> k.apply(new Node.A(b, c))).$());
+                        }
+                    }
+                    */
+                    // Note that local variable 'c' is introduced before 'b', but in the argument list of the Node.A constructor
+                    // call 'b' comes first.
+
+                    var newLocalVar = "x" + localVars.size();
+                    var code = parserCode_(interDesc,
+                                           astNodeName,
+                                           componentFieldNames,
+                                           nextInterNames,
+                                           prepend(newLocalVar, localVars));
+                    return CodeBlock.of("new $T<>($L -> $L).$L()",
+                                        implClassName(interfaceForVariable(implicitVar)),
+                                        newLocalVar,
+                                        code,
+                                        namer.specialEmptyMethodName());
+                })
+                .orElseGet(() -> parserCode_(interDesc,
+                                             astNodeName,
+                                             componentFieldNames,
+                                             nextInterNames,
+                                             localVars));
     }
 
     private CodeBlock parserCode_(
             InterfaceDescription interDesc,
-            ClassName astNodeName, List<String> componentFieldNames,
-            List<ClassName> nextInterNames, List<String> localVars)
+            ClassName astNodeName,
+            List<String> componentFieldNames,
+            List<ClassName> nextInterNames,
+            List<String> localVars)
     {
         // Encountered K
         if (nextInterNames.isEmpty()) {
-            return switch (interDesc.parserInfo()) {
-                case ParserInfo.PartialEmpty it -> CodeBlock.of("k.apply($L)", namer.emptyParserFieldName());
-                default -> CodeBlock.of("k.apply(new $T(%s))".formatted(String.join(", ", concatList(componentFieldNames, localVars))),
-                                        astNodeName);
-            };
+            return CodeBlock.of("k.apply(new $T(%s))".formatted(String.join(", ", concatList(componentFieldNames, localVars))),
+                                astNodeName);
         }
         // Encountered partial parser
         else if (interfaceDescription(nextInterNames.getFirst()).parserInfo() instanceof ParserInfo.PartialS) {
@@ -290,11 +334,6 @@ public class ApiImplGenerator {
                                 implClassName(nextInterNames.getFirst()),
                                 parserCode_(interDesc, astNodeName, componentFieldNames, subList(nextInterNames, 1), append(localVars, newLocalVar)));
         }
-        // Encountered partial empty parser
-        else if (interfaceDescription(nextInterNames.getFirst()).parserInfo() instanceof ParserInfo.PartialEmpty) {
-            return CodeBlock.of("k.apply(%L)",
-                                namer.emptyParserFieldName());
-        }
         // Encountered bridge
         else if (interfaceDescription(nextInterNames.getFirst()).parserInfo() instanceof ParserInfo.Bridge) {
             // Same as full parser but without creating a new local var
@@ -303,7 +342,7 @@ public class ApiImplGenerator {
                                 parserCode_(interDesc, astNodeName, componentFieldNames, subList(nextInterNames, 1), localVars));
         }
         else {
-            throw new IllegalStateException("Illegal next impl names: %s.".formatted(nextInterNames));
+            throw new IllegalStateException("Illegal parser continuation: %s.".formatted(nextInterNames));
         }
     }
 

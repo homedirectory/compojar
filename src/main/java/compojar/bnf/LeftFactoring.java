@@ -1,6 +1,7 @@
 package compojar.bnf;
 
 import compojar.gen.Namer;
+import compojar.gen.ParserInfo;
 import compojar.util.T2;
 
 import java.util.*;
@@ -28,7 +29,11 @@ public class LeftFactoring {
 
     public Data apply(Data data) {
         return findFirstCommonPrefix(data.bnf)
-                .map(pref -> apply(removeCommonPrefix(data.bnf, data.astMetadata, pref)))
+                .map(pref -> removeCommonPrefix(data.bnf, data.astMetadata, pref))
+                .map(data_ -> new EmptyProductionElimination(namer).apply(data_.bnf(), data_.astMetadata())
+                        .map(pair -> pair.map(Data::new))
+                        .orElse(data_))
+                .map(this::apply)
                 .orElse(data);
     }
 
@@ -39,12 +44,14 @@ public class LeftFactoring {
     {
         final var startVar = first(commonPrefix.chains).getFirst();
 
-        final var rewritten = rewriteRules(commonPrefix.symbol,
-                                           commonPrefix.chains.stream()
-                                                   .map(ch -> subList(ch, 1))
-                                                   .flatMap(Collection::stream)
-                                                   .toList(),
-                                           bnf);
+        // Variable -> (maybe Rf, Rp)
+        final Map<Variable, T2<Optional<Rule>, Rule>> rewritten =
+                rewriteRules(commonPrefix.symbol,
+                             commonPrefix.chains.stream()
+                                     .map(ch -> subList(ch, 1))
+                                     .flatMap(Collection::stream)
+                                     .toList(),
+                             bnf);
         final var ruleOVar = variable(namer.randomName("PREF"));
         final var ruleOkVar = variable(ruleOVar.name() + "_K");
         final Rule ruleO = new Derivation(ruleOVar, List.of(commonPrefix.symbol, ruleOkVar));
@@ -73,12 +80,55 @@ public class LeftFactoring {
                                                             .orElseGet(Stream::empty)))
                         .collect(Collectors.toSet()));
 
-        final var newAstMetadata = astMetadata;
+        final var ruleO_parserInfo = astMetadata.requireParserInfo(startVar);
+        // TODO components
+        final var ruleOk_parserInfo = new ParserInfo.PartialS(astMetadata.requireParserInfo(startVar).requireAstNodeName(), Set.of());
+
+        final var rewritten_parserInfoMap = reduce(
+                rewritten.keySet(),
+                Map.<Variable, ParserInfo>of(),
+                (acc, var) -> {
+                    var pair = rewritten.get(var);
+                    var varParserInfo = astMetadata.requireParserInfo(var);
+                    Map<Variable, ParserInfo> addedParserInfos = new HashMap<>();
+
+                    // TODO Implement when terminals become representable in the AST.
+                    var rpParserInfo = withAddedComponents(bnf.requireRuleFor(var), varParserInfo, Set.of());
+                    addedParserInfos.put(pair.snd().lhs(), rpParserInfo);
+
+                    pair.fst().ifPresent(rf -> addedParserInfos.put(rf.lhs(), varParserInfo));
+
+                    return mapStrictMerge(acc, addedParserInfos);
+                }
+        );
 
         final var newBnf = new BNF(newRules, bnf.start())
                 .updateRule(startVar, $ -> newStartRule);
 
+        final var newAstMetadata = astMetadata.addParserInfos(
+                mapStrictMerge(Map.of(ruleOVar, ruleO_parserInfo,
+                                      ruleOkVar, ruleOk_parserInfo),
+                               rewritten_parserInfoMap));
+
         return new Data(newBnf, newAstMetadata).removeUnused();
+    }
+
+    /**
+     * @param rule
+     * @param info  parser info associated with {@code rule}
+     * @param components
+     */
+    private ParserInfo withAddedComponents(Rule rule, ParserInfo info, Set<Object> components) {
+        // TODO components
+        return switch (info) {
+            case ParserInfo.Full full -> switch (rule) {
+                case Derivation $ -> new ParserInfo.PartialD(full.astNode(), Set.of());
+                case Selection $ -> new ParserInfo.PartialS(full.astNode(), Set.of());
+            };
+            case ParserInfo.PartialD d -> new ParserInfo.PartialD(d.astNode(), Set.of());
+            case ParserInfo.PartialS s -> new ParserInfo.PartialS(s.astNode(), Set.of());
+            default -> throw new IllegalStateException(String.format("Unexpected parser info: %s", info));
+        };
     }
 
     private Map<Variable, T2<Optional<Rule>, Rule>> rewriteRules(final Symbol prefix, final Collection<Variable> variables, final BNF bnf) {

@@ -90,4 +90,8 @@ public class Namer {
         return "x";
     }
 
+    public String specialEmptyMethodName() {
+        return "$";
+    }
+
 }

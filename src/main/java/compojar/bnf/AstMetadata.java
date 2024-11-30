@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 public interface AstMetadata {
 
@@ -32,9 +33,13 @@ public interface AstMetadata {
 
     AstMetadata addParserInfo(Variable variable, ParserInfo parserInfo);
 
+    AstMetadata addParserInfos(Map<Variable, ParserInfo> parserInfoMap);
+
     AstMetadata removeVariables(List<Variable> unused);
 
     AstMetadata updateParserInfos(Map<Variable, ParserInfo> newParserInfoMap);
+
+    AstMetadata updateParserInfo(Variable var, Function<? super ParserInfo, ? extends ParserInfo> fn);
 
     Optional<FieldSpec> findAstNodeField(ClassName astNodeName, Symbol symbol);
 

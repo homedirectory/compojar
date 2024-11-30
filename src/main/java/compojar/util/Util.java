@@ -264,6 +264,24 @@ public final class Util {
         return xs.reduce(init, fn, ($1, $2) -> {throw new UnsupportedOperationException("No combiner.");});
     }
 
+    public static <X, Y> Y reduce(Collection<X> xs, Y init, BiFunction<Y, ? super X, Y> fn) {
+        return reduce(xs.stream(), init, fn);
+    }
+
+    public static <X, Y> Y reduceWhile(Stream<X> xs, Y init, Predicate<? super Y> test, BiFunction<Y, ? super X, Y> fn) {
+        var iter = xs.iterator();
+
+        var acc = init;
+        while (iter.hasNext()) {
+            var nextAcc = fn.apply(acc, iter.next());
+            if (!test.test(nextAcc))
+                return acc;
+            acc = nextAcc;
+        }
+
+        return acc;
+    }
+
     // public static <X, Y> Stream<T2<X, Y>> zip(Iterable<X> xs, Iterable<Y> ys) {
     //
     // }
