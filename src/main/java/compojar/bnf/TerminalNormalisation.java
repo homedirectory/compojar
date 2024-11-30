@@ -27,7 +27,7 @@ public class TerminalNormalisation {
         var newBnf = bnf.rules().stream()
                 .reduce(bnf,
                         (acc, rule) -> normalise(rule)
-                                .map(pair -> bnf.overrideRule(pair.peek2(normalisedTerminals::addAll).fst()))
+                                .map(pair -> acc.overrideRule(pair.peek2(normalisedTerminals::addAll).fst()))
                                 .orElse(acc),
                         ($1, $2) -> {throw new UnsupportedOperationException("no combiner");})
                 .addRules(normalisedTerminals.stream()
