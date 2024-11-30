@@ -14,7 +14,7 @@ import static compojar.bnf.Symbol.variable;
 public interface Regex {
 
     Terminal a = terminal("a"),
-            start = terminal("start"),
+            begin = terminal("begin"),
             end = terminal("end"),
             zeroOrMore = terminal("zeroOrMore"),
             optional = terminal("optional"),
@@ -37,7 +37,7 @@ public interface Regex {
                                 derivation(Nil),
                                 selection(Term, Str, Group, QuantifiedTerm),
                                 derivation(Str, a),
-                                derivation(Group, start, Term, end),
+                                derivation(Group, begin, Term, end),
                                 selection(QuantifiedTerm, ZeroOrMore, Optional),
                                 // Left recursion with Term.
                                 // Could be rewritten as ZeroOrMore -> zeroOrMore Term
@@ -53,7 +53,7 @@ public interface Regex {
                              derivation(Nil, $),
                              selection(Term, Str, Group, QuantifiedTerm),
                              derivation(Str, a),
-                             derivation(Group, start, Term, end),
+                             derivation(Group, begin, Term, end),
                              selection(QuantifiedTerm, ZeroOrMore, Optional),
                              derivation(ZeroOrMore, zeroOrMore, Term),
                              derivation(Optional, optional, Term)),
