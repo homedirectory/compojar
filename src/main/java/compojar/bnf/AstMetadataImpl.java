@@ -1,13 +1,10 @@
 package compojar.bnf;
 
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.FieldSpec;
 import compojar.gen.ParserInfo;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 
 import static compojar.util.Util.*;
@@ -42,15 +39,6 @@ public record AstMetadataImpl (Map<Variable, ParserInfo> parserInfoMap,
         if (info == null)
             throw new IllegalArgumentException(String.format("No parser info for variable %s", var));
         return updateParserInfos(insert(parserInfoMap, var, fn.apply(info)));
-    }
-
-    @Override
-    public Optional<FieldSpec> findAstNodeField(final ClassName astNodeName, final Symbol symbol) {
-        final var astNodeMetadata = astNodeMetadatas.stream()
-                .filter(x -> x.astNodeClassName().equals(astNodeName))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No such AST node: %s".formatted(astNodeName)));
-        return Optional.ofNullable(astNodeMetadata.componentMap().get(symbol));
     }
 
     @Override

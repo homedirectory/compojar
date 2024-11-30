@@ -14,6 +14,10 @@ public non-sealed interface Terminal extends Symbol {
         return List.of();
     }
 
+    default boolean hasParameters() {
+        return !getParameters().isEmpty();
+    }
+
     default Terminal parameters(Type type, CharSequence name) {
         return new TerminalRecord(name(), List.of(new Parameter(type, name)));
     }

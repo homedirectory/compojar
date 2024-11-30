@@ -1,10 +1,11 @@
 package compojar.bnf;
 
 import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.FieldSpec;
 
-import java.util.Map;
-
-public record AstNodeMetadata(ClassName astNodeClassName, Variable variable, Map<Symbol, FieldSpec> componentMap) {
+/**
+ * @param astNodeClassName  name of an AST node
+ * @param variable  LHS of a rule that parses the AST node
+ */
+public record AstNodeMetadata(ClassName astNodeClassName, Variable variable) {
 
 }

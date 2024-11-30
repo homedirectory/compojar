@@ -8,17 +8,14 @@ import compojar.bnf.*;
 import compojar.util.JavaPoet;
 import compojar.util.T2;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static compojar.util.JavaPoet.interfaceBuilder;
 import static compojar.util.T2.t2;
 import static compojar.util.Util.enumeratedStream;
-import static java.util.Collections.unmodifiableMap;
 import static java.util.stream.Collectors.toMap;
-import static javax.lang.model.element.Modifier.PUBLIC;
-import static javax.lang.model.element.Modifier.STATIC;
+import static javax.lang.model.element.Modifier.*;
 
 // TODO: inline intermediate nodes
 public class AstGenerator {
@@ -73,27 +70,28 @@ public class AstGenerator {
         final var interfaceTypeName = classNameForNode(selection.lhs().name());
         return t2(interfaceBuilder(interfaceTypeName)
                           .addSuperinterfaces(selectorsFor(selection.lhs()).map(this::classNameForNode).toList()),
-                  astMetadata.addNodeMetadata(new AstNodeMetadata(interfaceTypeName, selection.lhs(), Map.of())));
+                  astMetadata.addNodeMetadata(new AstNodeMetadata(interfaceTypeName, selection.lhs())));
     }
 
     private T2<TypeSpec.Builder, AstNodeMetadata> buildNodeForDerivation(final Derivation derivation) {
         final var nodeClassName = classNameForNode(derivation.lhs().name());
-        var componentMap = new HashMap<Symbol, FieldSpec>();
         final var builder = JavaPoet.recordBuilder(
                         nodeClassName,
-                        enumeratedStream(derivation.rhs().stream()
-                                                 .filter(sym -> sym instanceof Variable)
-                                                 .map(sym -> (Variable) sym),
-                                         (v, i) -> {
-                                             final var fieldSpec = FieldSpec.builder(classNameForNode(v), v.toString().toLowerCase() + i).build();
-                                             componentMap.put(v, fieldSpec);
-                                             return fieldSpec;
+                        enumeratedStream(derivation.rhs().stream(),
+                                         (v, i) -> switch (v) {
+                                             case Terminal terminal when terminal.hasParameters() ->
+                                                     terminal.getParameters().stream()
+                                                             .map(param -> FieldSpec.builder(param.type(), param.name().toString(), PRIVATE, FINAL).build());
+                                             case Variable variable ->
+                                                     Stream.of(FieldSpec.builder(classNameForNode(variable), variable.toString().toLowerCase() + i).build());
+                                             default -> Stream.<FieldSpec>of();
                                          })
+                                .flatMap(Function.identity())
                                 .toList())
                 .addSuperinterfaces(selectorsFor(derivation.lhs())
                                             .map(this::classNameForNode)
                                             .toList());
-        return t2(builder, new AstNodeMetadata(nodeClassName, derivation.lhs(), unmodifiableMap(componentMap)));
+        return t2(builder, new AstNodeMetadata(nodeClassName, derivation.lhs()));
     }
 
     private Stream<Variable> selectorsFor(Variable var) {

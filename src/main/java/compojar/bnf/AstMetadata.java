@@ -1,7 +1,5 @@
 package compojar.bnf;
 
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.FieldSpec;
 import compojar.gen.ParserInfo;
 
 import java.util.Collection;
@@ -40,8 +38,6 @@ public interface AstMetadata {
     AstMetadata updateParserInfos(Map<Variable, ParserInfo> newParserInfoMap);
 
     AstMetadata updateParserInfo(Variable var, Function<? super ParserInfo, ? extends ParserInfo> fn);
-
-    Optional<FieldSpec> findAstNodeField(ClassName astNodeName, Symbol symbol);
 
     AstMetadata addNodeMetadata(AstNodeMetadata astNodeMetadata);
 
