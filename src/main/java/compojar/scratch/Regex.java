@@ -17,8 +17,9 @@ public interface Regex {
             start = terminal("start"),
             end = terminal("end"),
             zeroOrMore = terminal("zeroOrMore"),
-            optional = terminal("optional")
-                    ;
+            optional = terminal("optional"),
+            $ = terminal("$")
+            ;
 
     Variable Term = variable("Term"),
             ExprList = variable("ExprList"),
@@ -47,13 +48,15 @@ public interface Regex {
 
     BNF bnf = new BNF(Set.of(selection(ExprList, Nil, ExprCons),
                              derivation(ExprCons, Term, ExprList),
-                             derivation(Nil),
+                             // Illegal rule: empty RHS.
+//                             derivation(Nil),
+                             derivation(Nil, $),
                              selection(Term, Str, Group, QuantifiedTerm),
                              derivation(Str, a),
                              derivation(Group, start, Term, end),
                              selection(QuantifiedTerm, ZeroOrMore, Optional),
                              derivation(ZeroOrMore, zeroOrMore, Term),
                              derivation(Optional, optional, Term)),
-                      Term);
+                      ExprList);
 
 }

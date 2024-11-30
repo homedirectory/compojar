@@ -1,7 +1,7 @@
 package compojar.scratch;
 
 import org.junit.Test;
-import regex.Regex_AstNode.Term;
+import regex.Regex_AstNode;
 
 import static regex.Regex_Api.start;
 
@@ -9,11 +9,11 @@ public class RegexTest {
 
     @Test
     public void a() {
-        Term a = start().a();
+        Regex_AstNode a = start().a().$();
         // Assert.assertEquals(new Regex_AstNode.Str(), a);
-        Term groupOfA = start().start().a().end();
-        Term optA = start().optional().a();
-        Term zeroOrMoreA = start().zeroOrMore().a();
+        Regex_AstNode groupOfA = start().start().a().end().$();
+        Regex_AstNode optA = start().optional().a().$();
+        Regex_AstNode zeroOrMoreA = start().zeroOrMore().a().$();
     }
 
 }
