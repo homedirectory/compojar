@@ -256,6 +256,10 @@ public final class Util {
         }
     }
 
+    public static <X> boolean allElementsEqual(Iterable<X> xs) {
+        return allElementsEqual(xs, Function.identity());
+    }
+
     public static <X> List<X> dropRight(List<X> xs, int n) {
         return xs.subList(0, xs.size() - n);
     }
@@ -280,6 +284,35 @@ public final class Util {
         }
 
         return acc;
+    }
+
+    public static <X> Stream<List<X>> zipAll(Collection<List<X>> lists) {
+        if (lists.isEmpty()) {
+            return Stream.empty();
+        }
+        else {
+            final var maxSize = lists.stream().mapToInt(List::size).max().orElseThrow();
+            var iter = new Iterator<List<X>>() {
+                int i = 0;
+
+                @Override
+                public boolean hasNext() {
+                    return i < maxSize;
+                }
+
+                @Override
+                public List<X> next() {
+                    if (!hasNext())
+                        throw new NoSuchElementException();
+
+                    var xs = lists.stream().map(list -> list.get(i)).toList();
+                    i++;
+                    return xs;
+                }
+            };
+
+            return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, 0), false);
+        }
     }
 
     // public static <X, Y> Stream<T2<X, Y>> zip(Iterable<X> xs, Iterable<Y> ys) {

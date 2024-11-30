@@ -3,6 +3,7 @@ package compojar.bnf;
 import compojar.gen.Namer;
 import compojar.gen.ParserInfo;
 import compojar.util.T2;
+import compojar.util.Util;
 
 import java.util.*;
 import java.util.function.Function;
@@ -29,6 +30,7 @@ public class LeftFactoring {
 
     public Data apply(Data data) {
         return findFirstCommonPrefix(data.bnf)
+                .map(cp -> removeCommonChainPrefix(cp, data.bnf).orElse(cp))
                 .map(pref -> removeCommonPrefix(data.bnf, data.astMetadata, pref))
                 .map(data_ -> new EmptyProductionElimination(namer).apply(data_.bnf(), data_.astMetadata())
                         .map(pair -> pair.map(Data::new))
@@ -270,6 +272,31 @@ public class LeftFactoring {
         if (optionalMap2(firstOpt(dx.rhs()), firstOpt(dy.rhs()), Objects::equals).orElse(false))
             return firstOpt(dx.rhs());
         else return Optional.empty();
+    }
+
+    /**
+     * The result is present only if shortened chains begin with a selection.
+     * <p>
+     * For example, given chains [A -> B -> C -> D, A -> B -> C -> E], where C is a selection, the result is [C -> D, C -> E].
+     */
+    private Optional<CommonPrefix> removeCommonChainPrefix(CommonPrefix commonPrefix, BNF bnf) {
+        int commonChainSize = (int) zipAll(commonPrefix.chains)
+                .takeWhile(Util::allElementsEqual)
+                .count();
+        var commonChain = first(commonPrefix.chains).subList(0, commonChainSize);
+
+        var idx = findWithIndex(commonChain.reversed(), var -> bnf.requireRuleFor(var) instanceof Selection)
+                .map(T2::snd)
+                .map(i -> commonChain.size() - 1 - i)
+                .orElse(-1);
+
+        if (idx < 0) {
+            return Optional.empty();
+        }
+        else {
+            var newChains = commonPrefix.chains.stream().map(ch -> subList(ch, idx)).toList();
+            return Optional.of(new CommonPrefix(commonPrefix.symbol, newChains));
+        }
     }
 
     /**
