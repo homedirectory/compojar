@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static compojar.util.JavaPoet.getInnerTypeRecursively;
@@ -32,15 +33,24 @@ public class Generator {
     }
 
     private static BNF validateBnf(BNF bnf) {
+        assertNoEmptyRhs(bnf);
+        return bnf;
+    }
+
+    private static void assertNoEmptyRhs(BNF bnf) {
+        assertNoEmptyRhs(bnf, () -> "");
+    }
+
+    private static void assertNoEmptyRhs(BNF bnf, Supplier<String> errMsgFn) {
         var emptyRules = bnf.rules().stream()
                 .filter(r -> r.rhs().isEmpty())
                 .toList();
         if (!emptyRules.isEmpty()) {
-            throw new IllegalArgumentException(format("Rules with empty RHS are disallowed. Illegal rules:\n%s",
-                                                      emptyRules.stream().map(Objects::toString).collect(joining("\n"))));
+            var auxErrMsg = errMsgFn.get();
+            var mainErrMsg = format("Rules with empty RHS are disallowed. Illegal rules:\n%s",
+                                    emptyRules.stream().map(Objects::toString).collect(joining("\n")));
+            throw new IllegalArgumentException(auxErrMsg.isBlank() ? mainErrMsg : String.join("\n", auxErrMsg, mainErrMsg));
         }
-
-        return bnf;
     }
 
     public void generate(Path outputDirectory) throws IOException {
@@ -74,6 +84,8 @@ public class Generator {
                     final var canonicalBNF = _canonicalBnf;
                     final var astMetadata = _astMetadata;
 
+                    assertNoEmptyRhs(canonicalBNF, () -> "Grammar contains ambiguous rules (even after rewriting).");
+
                     var stackMachine = StackMachine.fromBNF(canonicalBNF);
                     new ApiGenerator(namer, stackMachine).generate().run((apiJavaFile, symbolInterfaceMap) -> {
                         var interfaceAstNodeMap = symbolInterfaceMap.entrySet().stream()
@@ -90,8 +102,6 @@ public class Generator {
                                 .collect(toMap(symbolInterfaceMap::get,
                                                           stackSym -> new InterfaceDescription(canonicalBNF.requireRuleFor(canonicalBNF.getVariable(stackSym)),
                                                                                                astMetadata.requireParserInfo(canonicalBNF.getVariable(stackSym)))));
-                        // .forEach((stackSym, inter) -> interfaceDescriptionMap.put(inter, new InterfaceDescription(canonicalBNF.requireRuleFor(canonicalBNF.getVariable(stackSym)),
-                        //                                                                                                     astMetadata.requireParserInfo(canonicalBNF.getVariable(stackSym)))));
                         final var fluentInterfaces = apiJavaFile.typeSpec.typeSpecs;
                         final var astNodeTypes = astJavaFile.typeSpec.typeSpecs.stream()
                                 .collect(toMap(ty -> namer.astNodeClassName(ty.name), Function.identity()));
