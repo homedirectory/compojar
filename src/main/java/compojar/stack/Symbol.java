@@ -5,7 +5,8 @@ public interface Symbol extends CharSequence  {
     Symbol empty = new StandardSymbol("<empty>");
 
     static Symbol symbol(CharSequence name) {
-        return new StandardSymbol(name);
+        var trueName = name instanceof compojar.bnf.Symbol s ? s.name() : name;
+        return new StandardSymbol(trueName);
     }
 
     default CharSequence name() {

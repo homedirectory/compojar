@@ -1,5 +1,6 @@
 package compojar.bnf;
 
+import java.util.List;
 import java.util.Optional;
 
 public sealed interface Symbol
@@ -8,7 +9,7 @@ public sealed interface Symbol
 {
 
     static Terminal terminal(CharSequence name) {
-        return new StandardTerminal(name);
+        return new TerminalRecord(name, List.of());
     }
 
     static Variable variable(CharSequence name) {

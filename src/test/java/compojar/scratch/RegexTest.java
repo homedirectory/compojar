@@ -9,11 +9,11 @@ public class RegexTest {
 
     @Test
     public void a() {
-        Regex_AstNode a = start().a().$();
-        // Assert.assertEquals(new Regex_AstNode.Str(), a);
-        Regex_AstNode groupOfA = start().start().a().end().$();
-        Regex_AstNode optA = start().optional().a().$();
-        Regex_AstNode zeroOrMoreA = start().zeroOrMore().a().$();
+        Regex_AstNode a = start().str().$();
+        // Assert.assertEquals(new Regex_AstNode.Str(), str);
+        Regex_AstNode groupOfA = start().begin().str().end().$();
+        Regex_AstNode optA = start().optional().str().$();
+        Regex_AstNode zeroOrMoreA = start().zeroOrMore().str().$();
     }
 
 }

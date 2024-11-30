@@ -14,7 +14,7 @@ import static compojar.scratch.Regex.V.*;
 public interface Regex {
 
     enum T implements Terminal {
-        a, begin, end, zeroOrMore, optional, $
+        str, begin, end, zeroOrMore, optional, $
     }
 
     enum V implements Variable {
@@ -33,7 +33,7 @@ public interface Regex {
                                 derivation(ExprCons, Term, ExprList),
                                 derivation(Nil),
                                 selection(Term, Str, Group, QuantifiedTerm),
-                                derivation(Str, a),
+                                derivation(Str, str),
                                 derivation(Group, begin, Term, end),
                                 selection(QuantifiedTerm, ZeroOrMore, Optional),
                                 // Left recursion with Term.
@@ -49,7 +49,7 @@ public interface Regex {
 //                             derivation(Nil),
                              derivation(Nil, $),
                              selection(Term, Str, Group, QuantifiedTerm),
-                             derivation(Str, a),
+                             derivation(Str, str.parameters(String.class, "s")),
                              derivation(Group, begin, Term, end),
                              selection(QuantifiedTerm, ZeroOrMore, Optional),
                              derivation(ZeroOrMore, zeroOrMore, Term),
