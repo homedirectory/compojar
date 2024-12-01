@@ -2,17 +2,18 @@ package compojar.gen;
 
 import com.squareup.javapoet.*;
 import compojar.bnf.*;
-import compojar.util.JavaPoet;
-import compojar.util.T2;
+import compojar.gen.ParserInfo.Bridge;
+import compojar.util.*;
 
+import java.lang.reflect.Type;
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
 import static com.squareup.javapoet.MethodSpec.methodBuilder;
 import static com.squareup.javapoet.TypeSpec.classBuilder;
 import static com.squareup.javapoet.TypeSpec.interfaceBuilder;
-import static compojar.gen.ParserInfo.BRIDGE;
 import static compojar.util.JavaPoet.recordStyleConstructor;
 import static compojar.util.T2.t2;
 import static compojar.util.Util.*;
@@ -122,9 +123,16 @@ public class ApiImplGenerator {
         // Declare all necesary fields.
         // 1. Field for the continuation.
         switch (interDesc.parserInfo()) {
-            case ParserInfo.Bridge $ ->
-                // Declare field `k` of type `K`.
-                    builder.addField(FieldSpec.builder(typeVar, "k", PRIVATE, FINAL).build());
+            case Bridge bridge -> {
+                // If the terminal has no parameters, declare field `k` of type `K`.
+                // Otherwise, declare field `k` of type `F`, where:
+                // F - a function with n parameters and return type K;
+                // n - number of terminal parameters.
+                var fieldType = bridge.terminal().hasParameters()
+                        ? functionTypeName(bridge.terminal().getParameters().stream().map(Parameter::type).toList(), typeVar)
+                        : typeVar;
+                builder.addField(FieldSpec.builder(fieldType, "k", PRIVATE, FINAL).build());
+            }
             default -> {
                 // Declare field `k` of type `Function<? super Node, K>` where `Node` is the most specific AST node parsed by the fluent interface.
                 var astNodeType = requireAstNodeFor(inter);
@@ -171,7 +179,7 @@ public class ApiImplGenerator {
                         .flatMap(superInter -> allApiMethods(superInter).map(m -> buildDelegatingMethod(m, argumentsToDelegateCtors, implClassName(superInter))))
                         .forEach(builder::addMethod);
             }
-            case Derivation derivation when interDesc.parserInfo() != BRIDGE -> {
+            case Derivation derivation when !(interDesc.parserInfo() instanceof Bridge) -> {
                 switch (derivation.rhs().getFirst()) {
                     // If the right-hand side of the rule starts with a terminal, then declare a method for that terminal.
                     case Terminal terminal -> {
@@ -186,7 +194,6 @@ public class ApiImplGenerator {
                                                                              parserCode(interDesc,
                                                                                         namer.astNodeClassName(astNodeType.name),
                                                                                         rhsRest,
-                                                                                        fields.stream().map(f -> f.name).toList(),
                                                                                         parameters.stream().map(p -> p.name).toList(),
                                                                                         List.of())))
                                                   .build());
@@ -201,7 +208,7 @@ public class ApiImplGenerator {
         }
 
         // Handle the case of a bridge parser.
-        if (interDesc.parserInfo() instanceof ParserInfo.Bridge) {
+        if (interDesc.parserInfo() instanceof Bridge) {
             // Implement the single method corresponding to the terminal being modelled, and the method's body is `return k`.
             if (inter.methodSpecs.size() != 1) {
                 throw new IllegalStateException(
@@ -211,24 +218,32 @@ public class ApiImplGenerator {
             final var interMethod = inter.methodSpecs.getFirst();
             builder.addMethod(JavaPoet.methodBuilder(interMethod)
                                       .addModifiers(PUBLIC)
-                                      .addStatement("return this.k")
+                                      .addStatement(interMethod.parameters.isEmpty()
+                                                            ? CodeBlock.of("return this.k")
+                                                            : CodeBlock.of("return this.k.apply($L)",
+                                                                           interMethod.parameters.stream().map(p -> p.name).collect(joining(", "))))
                                       .build());
         }
 
         // Derivation with the first RHS symbol being a non-terminal needs a super() statement.
         // Terminal parameters don't make sense here, so we use an empty list.
         Optional<CodeBlock> superStatement = switch (interDesc.rule()) {
-            case Derivation derivation when interDesc.parserInfo() != BRIDGE && derivation.rhs().getFirst() instanceof Variable v1 -> {
+            case Derivation derivation when !(interDesc.parserInfo() instanceof Bridge) && derivation.rhs().getFirst() instanceof Variable v1 -> {
                 var astNodeType = requireAstNodeFor(inter);
-                // If the first RHS symbol is a bridge, the call to super does not need a lambda.
-                if (interfaceDescription(interfaceForVariable(v1)).parserInfo() instanceof ParserInfo.Bridge) {
-                    yield Optional.of(CodeBlock.of("super($L)",
+                // If the first RHS symbol is a bridge, the call to super either needs a lambda with 1 or more parameters
+                // or doesn't need a lambda at all.
+                if (interfaceDescription(interfaceForVariable(v1)).parserInfo() instanceof Bridge bridge) {
+                    List<String> lambdaParams = bridge.terminal().getParameters().stream().map(p -> p.name().toString()).toList();
+                    String code = lambdaParams.isEmpty()
+                            ? "super($L)"
+                            : "super((%s) -> $L)".formatted(String.join(", ", lambdaParams));
+                    yield Optional.of(CodeBlock.of(code,
                                                    parserCode(interDesc,
                                                               namer.astNodeClassName(astNodeType.name),
                                                               // Skip the first variable as we are not instantiating it
                                                               subList(derivation.rhs(), 1),
                                                               List.of(),
-                                                              List.of())));
+                                                              lambdaParams)));
                 }
                 else {
                     var localVar = "x0";
@@ -249,6 +264,39 @@ public class ApiImplGenerator {
 
 
         return builder.build();
+    }
+
+    private ParameterizedTypeName functionTypeName(List<? extends Type> paramTypes, TypeName returnType) {
+        if (paramTypes.isEmpty())
+            throw new IllegalArgumentException("Expected non-empty [paramTypes]");
+
+        return switch (paramTypes.size()) {
+            case 0 -> throw new IllegalArgumentException("Expected non-empty [paramTypes]");
+            case 1 -> ParameterizedTypeName.get(ClassName.get(Function.class), TypeName.get(paramTypes.getFirst()), returnType);
+            case 2 -> ParameterizedTypeName.get(ClassName.get(BiFunction.class),
+                                                TypeName.get(paramTypes.getFirst()),
+                                                TypeName.get(paramTypes.get(1)),
+                                                returnType);
+            case 3 -> ParameterizedTypeName.get(ClassName.get(Function3.class),
+                                                TypeName.get(paramTypes.getFirst()),
+                                                TypeName.get(paramTypes.get(1)),
+                                                TypeName.get(paramTypes.get(2)),
+                                                returnType);
+            case 4 -> ParameterizedTypeName.get(ClassName.get(Function4.class),
+                                                TypeName.get(paramTypes.getFirst()),
+                                                TypeName.get(paramTypes.get(1)),
+                                                TypeName.get(paramTypes.get(2)),
+                                                TypeName.get(paramTypes.get(3)),
+                                                returnType);
+            case 5 -> ParameterizedTypeName.get(ClassName.get(Function5.class),
+                                                TypeName.get(paramTypes.getFirst()),
+                                                TypeName.get(paramTypes.get(1)),
+                                                TypeName.get(paramTypes.get(2)),
+                                                TypeName.get(paramTypes.get(3)),
+                                                TypeName.get(paramTypes.get(4)),
+                                                returnType);
+            default -> throw new IllegalStateException("Unsupported number of parameters for a function type: " + paramTypes.size());
+        };
     }
 
     private List<ParameterSpec> buildParameters(List<Parameter> parameters) {
@@ -339,11 +387,15 @@ public class ApiImplGenerator {
                                 parserCode_(interDesc, astNodeName, subList(nextInterNames, 1), parameters, append(localVars, newLocalVar)));
         }
         // Encountered bridge
-        else if (interfaceDescription(nextInterNames.getFirst()).parserInfo() instanceof Bridge) {
-            // Same as full parser but without creating a new local var
-            return CodeBlock.of("new $T<>($L)",
+        else if (interfaceDescription(nextInterNames.getFirst()).parserInfo() instanceof Bridge bridge) {
+            // Local vars are created for each parameter of the termninal associated with the bridge.
+            var newLocalVars = bridge.terminal().getParameters().stream().map(Parameter::name).map(CharSequence::toString).toList();
+            String code = bridge.terminal().hasParameters()
+                    ? "new $T<>((%s) -> $L)".formatted(String.join(", ", newLocalVars))
+                    : "new $T<>($L)";
+            return CodeBlock.of(code,
                                 implClassName(nextInterNames.getFirst()),
-                                parserCode_(interDesc, astNodeName, subList(nextInterNames, 1), parameters, localVars));
+                                parserCode_(interDesc, astNodeName, subList(nextInterNames, 1), parameters, concatList(localVars, newLocalVars)));
         }
         else {
             throw new IllegalStateException("Illegal parser continuation: %s.".formatted(nextInterNames));

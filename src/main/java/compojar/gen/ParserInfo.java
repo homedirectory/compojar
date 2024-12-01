@@ -2,6 +2,7 @@ package compojar.gen;
 
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
+import compojar.bnf.Terminal;
 import compojar.bnf.Variable;
 import compojar.util.T2;
 
@@ -91,11 +92,7 @@ public sealed interface ParserInfo {
         }
     }
 
-    Bridge BRIDGE = new Bridge();
-
-    final class Bridge implements ParserInfo {
-        private Bridge() {}
-
+    record Bridge (Terminal terminal) implements ParserInfo {
         @Override
         public Optional<ClassName> maybeAstNodeName() {
             return Optional.empty();

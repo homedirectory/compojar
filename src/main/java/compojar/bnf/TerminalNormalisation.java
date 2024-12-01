@@ -35,7 +35,7 @@ public class TerminalNormalisation {
                                   .toList());
         var newAstMetadata = normalisedTerminals.stream()
                 .reduce(astMetadata,
-                        (acc, t) -> acc.addParserInfo(variable(namer.normalisedTerminalName(t)), ParserInfo.BRIDGE),
+                        (acc, t) -> acc.addParserInfo(variable(namer.normalisedTerminalName(t)), new ParserInfo.Bridge(t)),
                         ($1, $2) -> {throw new UnsupportedOperationException("no combiner");});
         return t2(newBnf, newAstMetadata);
     }
