@@ -145,25 +145,8 @@ public class ApiImplGenerator {
             }
         }
 
-        // 2. Fields for components and parameters that should be supplied.
-        final List<FieldSpec> fields = switch (interDesc.parserInfo()) {
-            case ParserInfo.PartialD d -> {
-                final var astNode = requireAstNode(d.astNode());
-                // Declare fields for all parameters that should be supplied.
-                final var paramsFields = d.parameters().stream()
-                        .map(pair -> pair.map((ty, name) -> FieldSpec.builder(ty, name, PRIVATE, FINAL).build()))
-                        .toList();
-                yield paramsFields;
-            }
-            case ParserInfo.PartialS s -> {
-                // Declare fields for all parameters that should be supplied.
-                var paramsFields = enumeratedStream(s.parameters().stream(),
-                                                        (c, i) -> FieldSpec.builder(c, "p" + i, PRIVATE, FINAL).build())
-                        .toList();
-                yield paramsFields;
-            }
-            default -> List.of();
-        };
+        // 2. Fields for parameters that should be supplied.
+        final var fields = fieldsForParameters(interDesc);
 
         builder.addFields(fields);
 
@@ -266,6 +249,27 @@ public class ApiImplGenerator {
         return builder.build();
     }
 
+    private List<FieldSpec> fieldsForParameters(InterfaceDescription interDesc) {
+        final List<FieldSpec> fields = switch (interDesc.parserInfo()) {
+            case ParserInfo.PartialD d -> {
+                // Declare fields for all parameters that should be supplied.
+                final var paramsFields = d.parameters().stream()
+                        .map(pair -> pair.map((ty, name) -> FieldSpec.builder(ty, name, PRIVATE, FINAL).build()))
+                        .toList();
+                yield paramsFields;
+            }
+            case ParserInfo.PartialS s -> {
+                // Declare fields for all parameters that should be supplied.
+                var paramsFields = enumeratedStream(s.parameters().stream(),
+                                                        (c, i) -> FieldSpec.builder(c, "p" + i, PRIVATE, FINAL).build())
+                        .toList();
+                yield paramsFields;
+            }
+            default -> List.of();
+        };
+        return fields;
+    }
+
     private ParameterizedTypeName functionTypeName(List<? extends Type> paramTypes, TypeName returnType) {
         if (paramTypes.isEmpty())
             throw new IllegalArgumentException("Expected non-empty [paramTypes]");
@@ -319,6 +323,8 @@ public class ApiImplGenerator {
                 .map(s -> (Variable) s).map(this::interfaceForVariable)
                 .map(inter -> namer.fluentInterfaceClassName(inter.name))
                 .toList();
+        var allParameters = concatList(fieldsForParameters(interDesc).stream().map(fs -> fs.name).toList(),
+                                       parameters);
         return interDesc.parserInfo().implicitVar().map(implicitVar -> {
                     // Local variable for the implicitly parsed node needs to be prepended to the list of all local variables
                     // because the parsing order may be slightly reversed if this expression is inside super().
@@ -343,18 +349,22 @@ public class ApiImplGenerator {
                     var code = parserCode_(interDesc,
                                            astNodeName,
                                            nextInterNames,
-                                           parameters,
+                                           List.of(),
                                            prepend(newLocalVar, localVars));
-                    return CodeBlock.of("new $T<>($L -> $L).$L()",
+                    // The implicitly parsed node consumes all parameters collected so far.
+                    var constructorArgs = allParameters.isEmpty()
+                            ? CodeBlock.of("$L -> $L", newLocalVar, code)
+                            : CodeBlock.of("$L -> $L, $L", newLocalVar, code, String.join(", ", allParameters));
+                    return CodeBlock.of("new $T<>($L).$L()",
                                         implClassName(interfaceForVariable(implicitVar)),
-                                        newLocalVar,
-                                        code,
+                                        constructorArgs,
                                         namer.specialEmptyMethodName());
                 })
+                // The last parsed node consumes all parameters collected so far.
                 .orElseGet(() -> parserCode_(interDesc,
                                              astNodeName,
                                              nextInterNames,
-                                             parameters,
+                                             allParameters,
                                              localVars));
     }
 
