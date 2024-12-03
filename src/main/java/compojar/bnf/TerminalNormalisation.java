@@ -56,7 +56,7 @@ public class TerminalNormalisation {
             else {
             var newRule = terminals.stream()
                     .reduce(derivation,
-                            (acc, pair) -> new Derivation(derivation.lhs(), replace(derivation.rhs(), pair.snd(), variable(namer.normalisedTerminalName(pair.fst())))),
+                            (acc, pair) -> new Derivation(derivation.lhs(), replace(acc.rhs(), pair.snd(), variable(namer.normalisedTerminalName(pair.fst())))),
                             ($1, $2) -> {throw new UnsupportedOperationException("no combiner");});
                 return Optional.of(t2(newRule, terminals.stream().map(T2::fst).collect(Collectors.toSet())));
             }
