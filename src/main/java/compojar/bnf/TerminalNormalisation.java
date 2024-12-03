@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import static compojar.bnf.Rule.derivation;
 import static compojar.bnf.Symbol.variable;
 import static compojar.util.T2.t2;
+import static compojar.util.Util.reduce;
 import static compojar.util.Util.replace;
 
 public class TerminalNormalisation {
@@ -24,19 +25,17 @@ public class TerminalNormalisation {
 
     public T2<BNF, AstMetadata> apply(final BNF bnf, final AstMetadata astMetadata) {
         var normalisedTerminals = new HashSet<Terminal>();
-        var newBnf = bnf.rules().stream()
-                .reduce(bnf,
-                        (acc, rule) -> normalise(rule)
-                                .map(pair -> acc.overrideRule(pair.peek2(normalisedTerminals::addAll).fst()))
-                                .orElse(acc),
-                        ($1, $2) -> {throw new UnsupportedOperationException("no combiner");})
+        var newBnf = reduce(bnf.rules().stream(),
+                            bnf,
+                            (acc, rule) -> normalise(rule)
+                                    .map(pair -> acc.overrideRule(pair.peek2(normalisedTerminals::addAll).fst()))
+                                    .orElse(acc))
                 .addRules(normalisedTerminals.stream()
                                   .map(t -> derivation(variable(namer.normalisedTerminalName(t)), t))
                                   .toList());
-        var newAstMetadata = normalisedTerminals.stream()
-                .reduce(astMetadata,
-                        (acc, t) -> acc.addParserInfo(variable(namer.normalisedTerminalName(t)), new ParserInfo.Bridge(t)),
-                        ($1, $2) -> {throw new UnsupportedOperationException("no combiner");});
+        var newAstMetadata = reduce(normalisedTerminals.stream(),
+                                    astMetadata,
+                                    (acc, t) -> acc.addParserInfo(variable(namer.normalisedTerminalName(t)), new ParserInfo.Bridge(t)));
         return t2(newBnf, newAstMetadata);
     }
 
@@ -54,10 +53,9 @@ public class TerminalNormalisation {
                 return Optional.empty();
             }
             else {
-            var newRule = terminals.stream()
-                    .reduce(derivation,
-                            (acc, pair) -> new Derivation(derivation.lhs(), replace(acc.rhs(), pair.snd(), variable(namer.normalisedTerminalName(pair.fst())))),
-                            ($1, $2) -> {throw new UnsupportedOperationException("no combiner");});
+                var newRule = reduce(terminals.stream(),
+                                     derivation,
+                                     (acc, pair) -> new Derivation(derivation.lhs(), replace(acc.rhs(), pair.snd(), variable(namer.normalisedTerminalName(pair.fst())))));
                 return Optional.of(t2(newRule, terminals.stream().map(T2::fst).collect(Collectors.toSet())));
             }
         }
