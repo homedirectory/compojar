@@ -155,7 +155,7 @@ public class ApiImplGenerator {
         switch (interDesc.rule()) {
             case Selection selection -> {
                 // Implement methods of all options via delegation.
-                // This relies on the correct order of fields declared in this implementation type: zero or more components followed by a continuation.
+                // This relies on the correct order of fields declared in this implementation type: continuation followed by zero or more parameters.
                 final List<String> argumentsToDelegateCtors = builder.fieldSpecs.stream().map(f -> f.name).toList();
                 inter.superinterfaces.stream()
                         .map(this::getFluentInterface)
