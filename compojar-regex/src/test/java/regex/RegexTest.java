@@ -8,13 +8,13 @@ public class RegexTest {
         // ISBN-13 without hyphens
         start().times(13).digit().$();
         // IPv4 address
-        start().atLeast(1).atMost(3).digit()
+        start().between(1, 3).digit()
                 .str(".")
-                .atLeast(1).atMost(3).digit()
+                .between(1, 3).digit()
                 .str(".")
-                .atLeast(1).atMost(3).digit()
+                .between(1, 3).digit()
                 .str(".")
-                .atLeast(1).atMost(3).digit()
+                .between(1, 3).digit()
                 .$();
         // Social Security Number followed by an optional extension
         // \d{3}-\d{2}-\d{4}\s*(ext\.?\s*\d{1,5})?
@@ -29,7 +29,7 @@ public class RegexTest {
                     .str("ext")
                     .optional().str(".")
                     .zeroOrMore().space()
-                    .atLeast(1).atMost(5).digit()
+                    .between(1, 3).digit()
                     .$()
                 .end()
                 .$();

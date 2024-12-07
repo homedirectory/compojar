@@ -1,4 +1,4 @@
-package dot;
+package compojar.dot;
 
 import java.lang.String;
 

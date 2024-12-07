@@ -1,6 +1,5 @@
-package compojar.scratch;
+package compojar.math;
 
-import math.Math_Api;
 import org.junit.Test;
 
 public class GeneratedMathApiTest {

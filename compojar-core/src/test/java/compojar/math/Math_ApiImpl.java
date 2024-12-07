@@ -1,4 +1,4 @@
-package math;
+package compojar.math;
 
 import java.util.function.Function;
 

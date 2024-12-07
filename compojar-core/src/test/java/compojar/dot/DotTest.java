@@ -1,13 +1,13 @@
-package compojar.scratch;
+package compojar.dot;
 
-import dot.Dot_AstNode.*;
+import compojar.dot.Dot_AstNode.*;
 import org.junit.Test;
 
 import java.util.HashSet;
 import java.util.Set;
 
+import static compojar.dot.Dot_Api.start;
 import static compojar.util.T2.t2;
-import static dot.Dot_Api.start;
 import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toSet;
 import static org.junit.Assert.assertEquals;
