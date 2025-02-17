@@ -25,7 +25,7 @@ public record AstMetadataImpl (Map<Variable, ParserInfo> parserInfoMap,
 
     @Override
     public AstMetadata removeVariables(final List<Variable> variables) {
-        return updateParserInfos(mapRemove(parserInfoMap, variables));
+        return updateParserInfos(mapRemoveAll(parserInfoMap, variables));
     }
 
     @Override

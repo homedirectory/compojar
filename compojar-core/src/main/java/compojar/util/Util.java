@@ -118,7 +118,7 @@ public final class Util {
         return unmodifiableSequencedSet(set);
     }
 
-    public static <K, V> Map<K, V> mapRemove(final Map<K, V> map, final List<K> keys) {
+    public static <K, V> Map<K, V> mapRemoveAll(final Map<K, V> map, final List<K> keys) {
         if (keys.isEmpty()) {
             return map;
         }
