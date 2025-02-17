@@ -270,43 +270,45 @@ public class ApiImplGenerator {
         return fields;
     }
 
-    private ParameterizedTypeName functionTypeName(List<? extends Type> paramTypes, TypeName returnType) {
-        if (paramTypes.isEmpty())
-            throw new IllegalArgumentException("Expected non-empty [paramTypes]");
-
-        return switch (paramTypes.size()) {
-            case 0 -> throw new IllegalArgumentException("Expected non-empty [paramTypes]");
-            case 1 -> ParameterizedTypeName.get(ClassName.get(Function.class), TypeName.get(paramTypes.getFirst()), returnType);
-            case 2 -> ParameterizedTypeName.get(ClassName.get(BiFunction.class),
-                                                TypeName.get(paramTypes.getFirst()),
-                                                TypeName.get(paramTypes.get(1)),
-                                                returnType);
-            case 3 -> ParameterizedTypeName.get(ClassName.get(Function3.class),
-                                                TypeName.get(paramTypes.getFirst()),
-                                                TypeName.get(paramTypes.get(1)),
-                                                TypeName.get(paramTypes.get(2)),
-                                                returnType);
-            case 4 -> ParameterizedTypeName.get(ClassName.get(Function4.class),
-                                                TypeName.get(paramTypes.getFirst()),
-                                                TypeName.get(paramTypes.get(1)),
-                                                TypeName.get(paramTypes.get(2)),
-                                                TypeName.get(paramTypes.get(3)),
-                                                returnType);
-            case 5 -> ParameterizedTypeName.get(ClassName.get(Function5.class),
-                                                TypeName.get(paramTypes.getFirst()),
-                                                TypeName.get(paramTypes.get(1)),
-                                                TypeName.get(paramTypes.get(2)),
-                                                TypeName.get(paramTypes.get(3)),
-                                                TypeName.get(paramTypes.get(4)),
-                                                returnType);
-            default -> throw new IllegalStateException("Unsupported number of parameters for a function type: " + paramTypes.size());
-        };
-    }
-
     private List<ParameterSpec> buildParameters(List<Parameter> parameters) {
         return parameters.stream()
                 .map(p -> ParameterSpec.builder(p.type(), p.name().toString()).build())
                 .toList();
+    }
+
+    private ParameterizedTypeName functionTypeName(List<? extends Type> paramTypes, TypeName returnType) {
+
+        if (paramTypes.isEmpty())
+            throw new IllegalArgumentException("Expected non-empty [paramTypes]");
+
+        var paramTypeNames = paramTypes.stream().map(TypeName::get).map(TypeName::box).toList();
+        return switch (paramTypeNames.size()) {
+            case 0 -> throw new IllegalArgumentException("Expected non-empty [paramTypes]");
+            case 1 -> ParameterizedTypeName.get(ClassName.get(Function.class), paramTypeNames.getFirst(), returnType);
+            case 2 -> ParameterizedTypeName.get(ClassName.get(BiFunction.class),
+                                                paramTypeNames.getFirst(),
+                                                paramTypeNames.get(1),
+                                                returnType);
+            case 3 -> ParameterizedTypeName.get(ClassName.get(Function3.class),
+                                                paramTypeNames.getFirst(),
+                                                paramTypeNames.get(1),
+                                                paramTypeNames.get(2),
+                                                returnType);
+            case 4 -> ParameterizedTypeName.get(ClassName.get(Function4.class),
+                                                paramTypeNames.getFirst(),
+                                                paramTypeNames.get(1),
+                                                paramTypeNames.get(2),
+                                                paramTypeNames.get(3),
+                                                returnType);
+            case 5 -> ParameterizedTypeName.get(ClassName.get(Function5.class),
+                                                paramTypeNames.getFirst(),
+                                                paramTypeNames.get(1),
+                                                paramTypeNames.get(2),
+                                                paramTypeNames.get(3),
+                                                paramTypeNames.get(4),
+                                                returnType);
+            default -> throw new IllegalStateException("Unsupported number of parameters for a function type: " + paramTypeNames.size());
+        };
     }
 
     /**
