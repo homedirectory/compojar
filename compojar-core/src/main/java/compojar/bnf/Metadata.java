@@ -9,6 +9,10 @@ public record Metadata(Map<Key, Object> map) {
 
     public static final Metadata EMPTY = new Metadata(Map.of());
 
+    public static Builder builder() {
+        return new Builder();
+    }
+
     public <T> T get(Key<T> key) {
         final var value = map.get(key);
         if (value == null) {

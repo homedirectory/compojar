@@ -9,6 +9,11 @@ record StandardVariable(CharSequence name, Metadata metadata) implements Variabl
     }
 
     @Override
+    public <T> StandardVariable with(Key<T> key, T value) {
+        return new StandardVariable(name, metadata.toBuilder().put(key, value).build());
+    }
+
+    @Override
     public String toString() {
         return name.toString();
     }

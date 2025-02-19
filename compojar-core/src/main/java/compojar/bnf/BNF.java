@@ -59,28 +59,31 @@ public record BNF (Set<Terminal> terminals, Set<Variable> variables, Set<Rule> r
     }
 
     public Rule requireRuleFor(final Variable v) {
+        final var vNorm = v.normalise();
         return rules.stream()
-                .filter(rule -> rule.lhs().equals(v))
+                .filter(rule -> rule.lhs().equals(vNorm))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No such rule: %s".formatted(v)));
+                .orElseThrow(() -> new IllegalArgumentException("No such rule: %s".formatted(vNorm)));
     }
 
     public Selection requireSelectionFor(final Variable v) {
+        final var vNorm = v.normalise();
         return rules.stream()
-                .filter(rule -> rule.lhs().equals(v))
+                .filter(rule -> rule.lhs().equals(vNorm))
                 .findFirst()
                 .map(rule -> {
                     if (rule instanceof Selection it) {
                         return it;
                     }
-                    throw new IllegalStateException("Expected rule %s to be a selection, but was %s".formatted(v, rule.getClass()));
+                    throw new IllegalStateException("Expected rule %s to be a selection, but was %s".formatted(vNorm, rule.getClass()));
                 })
-                .orElseThrow(() -> new IllegalArgumentException("No such rule: %s".formatted(v)));
+                .orElseThrow(() -> new IllegalArgumentException("No such rule: %s".formatted(vNorm)));
     }
 
     public Stream<Rule> rulesFor(final Variable v) {
+        final var vNorm = v.normalise();
         return rules.stream()
-                .filter(rule -> rule.lhs().equals(v));
+                .filter(rule -> rule.lhs().equals(vNorm));
         // .orElseThrow(() -> new IllegalArgumentException("No such rule: %s".formatted(v)));
     }
 

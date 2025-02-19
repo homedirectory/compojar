@@ -13,11 +13,12 @@ final class TerminalRecord implements Terminal {
 
     private final CharSequence name;
     private final List<Parameter> parameters;
+    private final Metadata metadata;
 
-    TerminalRecord(CharSequence name, List<Parameter> parameters) {
+    TerminalRecord(CharSequence name, List<Parameter> parameters, Metadata metadata) {
         var dupNames = parameters.stream()
-                .collect(collectingAndThen(groupingBy(Parameter::name),
-                                           map -> removeAll(map, ($, ps) -> ps.size() < 2).keySet()));
+                                 .collect(collectingAndThen(groupingBy(Parameter::name),
+                                                            map -> removeAll(map, ($, ps) -> ps.size() < 2).keySet()));
         if (!dupNames.isEmpty()) {
             throw new IllegalArgumentException(format("Parameters with duplicate names are disallowed: %s(%s)",
                                                       name,
@@ -26,6 +27,16 @@ final class TerminalRecord implements Terminal {
 
         this.name = name;
         this.parameters = parameters;
+        this.metadata = metadata;
+    }
+
+    TerminalRecord(CharSequence name, List<Parameter> parameters) {
+        this(name, parameters, Metadata.EMPTY);
+    }
+
+    @Override
+    public <T> TerminalRecord with(Key<T> key, T value) {
+        return new TerminalRecord(name, parameters, metadata.toBuilder().put(key, value).build());
     }
 
     @Override

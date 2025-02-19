@@ -10,6 +10,16 @@ public non-sealed interface Terminal extends Symbol {
 
     Comparator<Terminal> comparator = comparing(t -> t.name().toString());
 
+    @Override
+    default <T> Terminal with(Key<T> key, T value) {
+        return new TerminalRecord(name(), List.of()).with(key, value);
+    }
+
+    @Override
+    default Symbol normalise() {
+        return new TerminalRecord(name(), List.of());
+    }
+
     default List<Parameter> getParameters() {
         return List.of();
     }

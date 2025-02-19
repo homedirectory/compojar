@@ -1,7 +1,9 @@
 package compojar.bnf;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 public sealed interface Symbol
         extends CharSequence
@@ -20,6 +22,16 @@ public sealed interface Symbol
         return this instanceof Enum<?> e ? e.name() : toString();
     }
 
+    /**
+     * Strip the symbol to its bare essentials.
+     */
+    Symbol normalise();
+
+    /**
+     * Returns an annotated version of this symbol using the specified key and value.
+     */
+    <T> Symbol with(Key<T> key, T value);
+
     default <T> T get(Key<T> key) {
         throw new UnsupportedOperationException("TODO");
     }
@@ -30,6 +42,10 @@ public sealed interface Symbol
 
     default boolean has(Key<?> key) {
         return false;
+    }
+
+    static <T> Predicate<? super Symbol> testOnValue(Key<T> key, T value) {
+        return node -> node.getOpt(key).filter(v -> Objects.equals(v, value)).isPresent();
     }
 
     @Override
