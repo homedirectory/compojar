@@ -1,14 +1,8 @@
 package compojar.util;
 
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.BaseStream;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import java.util.function.*;
+import java.util.stream.*;
 
 import static compojar.util.T2.t2;
 import static java.lang.Character.isUpperCase;
@@ -129,6 +123,26 @@ public final class Util {
         }
     }
 
+    public static <K, V> Map<K, V> mapRemove(final Map<K, V> map, final K key) {
+        if (!map.containsKey(key)) {
+            return map;
+        }
+        else {
+            var newMap = new HashMap<K, V>(map);
+            newMap.remove(key);
+            return unmodifiableMap(newMap);
+        }
+    }
+
+    public static <K, V> Map<K, V> filterKeys(Map<K, V> map, BiPredicate<? super K, ? super V> test) {
+        var newMap = new HashMap<K, V>(map.size() / 2);
+        map.forEach((k, v) -> {
+            if (test.test(k, v))
+                newMap.put(k, v);
+        });
+        return unmodifiableMap(newMap);
+    }
+
     public static <X> Collection<X> strictMerge(
             final Collection<? extends X> xs,
             final Collection<? extends X> ys,
@@ -156,6 +170,19 @@ public final class Util {
         return unmodifiableMap(map);
     }
 
+    /** Left-biased union. */
+    public static <K, V> Map<K, V> mapUnion(Map<K, V> left, Map<K, V> right) {
+        var union = new HashMap<K, V>(left.size() + right.size());
+        union.putAll(right);
+        union.putAll(left);
+        return unmodifiableMap(union);
+    }
+
+    /** Right-biased union. */
+    public static <K, V> Map<K, V> mapUnionRight(Map<K, V> left, Map<K, V> right) {
+        return mapUnion(right, left);
+    }
+
     public static <K1, V, K2> Map<K2, V> mapKeys(final Map<K1, V> map, final Function<? super K1, K2> fn) {
         var newMap = new HashMap<K2, V>(map.size());
         map.forEach((k, v) -> newMap.put(fn.apply(k), v));
@@ -167,6 +194,23 @@ public final class Util {
         var newMap = new HashMap<K, V>(map);
         newMap.put(key, value);
         return unmodifiableMap(newMap);
+    }
+
+    public static <K, V> Map<K, V> insertWith(Map<K, V> map, K key, V value, BinaryOperator<V> fn) {
+        var newMap = new HashMap<>(map);
+        newMap.merge(key, value, fn);
+        return unmodifiableMap(newMap);
+    }
+
+    public static <K, V> Map<K,V> update(Map<K, V> map, K key, Function<? super V, ? extends V> fn) {
+        if (!map.containsKey(key)) {
+            return map;
+        }
+        else {
+            var newMap = new HashMap<>(map);
+            newMap.put(key, fn.apply(newMap.get(key)));
+            return unmodifiableMap(newMap);
+        }
     }
 
     public static <K, V> Map<K, V> removeAll(final Map<K, V> map, final BiPredicate<? super K, ? super V> test) {
@@ -212,6 +256,17 @@ public final class Util {
         }
         else {
             return name.toString();
+        }
+    }
+
+    public static <X> Set<X> remove(Set<X> xs, X x) {
+        if (!xs.contains(x)) {
+            return xs;
+        }
+        else {
+            var result = new HashSet<X>(xs);
+            result.remove(x);
+            return unmodifiableSet(result);
         }
     }
 
@@ -305,13 +360,18 @@ public final class Util {
     }
 
     public static <X, Y> Stream<T2<X, Y>> zip(Collection<X> xs, Collection<Y> ys) {
-        var iter = new Iterator<T2<X, Y>>() {
-            final Iterator<X> xsIter = xs.iterator();
-            final Iterator<Y> ysIter = ys.iterator();
+        return zip(xs.iterator(), ys.iterator());
+    }
 
+    public static <X, Y> Stream<T2<X, Y>> zip(BaseStream<X, ?> xs, BaseStream<Y, ?> ys) {
+        return zip(xs.iterator(), ys.iterator());
+    }
+
+    public static <X, Y> Stream<T2<X, Y>> zip(Iterator<X> xs, Iterator<Y> ys) {
+        var iter = new Iterator<T2<X, Y>>() {
             @Override
             public boolean hasNext() {
-                return xsIter.hasNext() && ysIter.hasNext();
+                return xs.hasNext() && ys.hasNext();
             }
 
             @Override
@@ -319,7 +379,7 @@ public final class Util {
                 if (!hasNext())
                     throw new NoSuchElementException();
 
-                return t2(xsIter.next(), ysIter.next());
+                return t2(xs.next(), ys.next());
             }
         };
 
@@ -353,6 +413,31 @@ public final class Util {
 
             return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, 0), false);
         }
+    }
+
+    public static <X, Z> Z foldl(BiFunction<? super Z, ? super X, ? extends Z> fn,
+                                 Z init,
+                                 Collection<X> xs)
+    {
+        return foldl(fn, init, xs.stream());
+    }
+
+    public static <Z, X> Z foldl(BiFunction<? super Z, ? super X, ? extends Z> fn, Z init, Stream<X> xs) {
+        return xs.reduce(init, fn::apply, ($1, $2) -> { throw new UnsupportedOperationException("no combiner"); });
+    }
+
+    public static <K,V,Z> Z foldl(Function3<? super Z, ? super K, ? super V, ? extends Z> fn,
+                                 Z init,
+                                 Map<K, V> xs)
+    {
+        return foldl((acc, entry) -> fn.apply(acc, entry.getKey(), entry.getValue()),
+                     init,
+                     xs.entrySet());
+    }
+
+
+    public static <K,V,Z> Stream<Z> stream(Map<K, V> map, BiFunction<? super K, ? super V, Z> fn) {
+        return map.entrySet().stream().map(entry -> fn.apply(entry.getKey(), entry.getValue()));
     }
 
     // public static <X, Y> Stream<T2<X, Y>> zip(Iterable<X> xs, Iterable<Y> ys) {
