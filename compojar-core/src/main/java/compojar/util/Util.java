@@ -303,6 +303,25 @@ public final class Util {
                 .collect(Collectors.toMap(pair -> pair.map(keyFn), pair -> pair.map(valueFn)));
     }
 
+    public static <A, B> Collector<T2<A,B>, ?, Map<A, B>> toMapFromPairs() {
+        return Collector. <T2<A,B>, Map<A,B>, Map<A,B>> of(
+                HashMap::new,
+                (map, pair) -> map.put(pair.fst(), pair.snd()),
+                Util::mapStrictMerge,
+                Collections::unmodifiableMap);
+    }
+
+    public static <A, B, X, Y> Collector<T2<A,B>, ?, Map<X, Y>> toMapFromPairs(
+            BiFunction<? super A, ? super B, X> keyFn,
+            BiFunction<? super A, ? super B, Y> valueFn)
+    {
+        return Collector. <T2<A,B>, Map<X,Y>, Map<X,Y>> of(
+                HashMap::new,
+                (map, pair) -> map.put(pair.map(keyFn::apply), pair.map(valueFn::apply)),
+                Util::mapStrictMerge,
+                Collections::unmodifiableMap);
+    }
+
     public static <A, B, C, K, V> Map<K,V> mapFromTriples(final Collection<T3<A, B, C>> pairs,
                                                        final Function3<? super A, ? super B, ? super C, K> keyFn,
                                                        final Function3<? super A, ? super B, ? super C, V> valueFn)
