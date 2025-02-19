@@ -386,6 +386,14 @@ public final class Util {
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iter, 0), false);
     }
 
+    public static <X, Y, Z> Stream<Z> zipWith(Collection<X> xs, Collection<Y> ys, BiFunction<? super X, ? super Y, Z> fn) {
+        return zip(xs, ys).map(pair -> pair.map(fn));
+    }
+
+    public static <X, Y, Z> Stream<Z> zipWith(Stream<X> xs, Stream<Y> ys, BiFunction<? super X, ? super Y, Z> fn) {
+        return zip(xs, ys).map(pair -> pair.map(fn));
+    }
+
     public static <X> Stream<List<X>> zipAll(Collection<List<X>> lists) {
         if (lists.isEmpty()) {
             return Stream.empty();
