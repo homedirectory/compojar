@@ -11,6 +11,13 @@ import static java.util.Collections.*;
 
 public final class Util {
 
+    public static <X> List<X> cons(X x, Collection<? extends X> xs) {
+        var list = new ArrayList<X>(1 + xs.size());
+        list.add(x);
+        list.addAll(xs);
+        return unmodifiableList(list);
+    }
+
     public static boolean contentEquals(CharSequence cs1, CharSequence cs2) {
         if (cs1.length() != cs2.length()) {
             return false;
@@ -270,6 +277,35 @@ public final class Util {
         }
     }
 
+    public static <X, Z> Z foldMaybe(
+            BiFunction<? super Z, ? super X, Optional<Z>> fn,
+            Z init,
+            Collection<X> xs)
+    {
+        return foldMaybe(fn, init, xs.iterator());
+    }
+
+    public static <X, Z> Z foldMaybe(
+            BiFunction<? super Z, ? super X, Optional<Z>> fn,
+            Z init,
+            Stream<X> xs)
+    {
+            return foldMaybe(fn, init, xs.iterator());
+    }
+
+    private static <Z, X> Z foldMaybe(BiFunction<? super Z, ? super X, Optional<Z>> fn, Z init, Iterator<X> iterator) {
+        var acc = init;
+        while (iterator.hasNext()) {
+            final var result = fn.apply(acc, iterator.next());
+            if (result.isPresent())
+                acc = result.get();
+            else
+                break;
+        }
+        return acc;
+    }
+
+
     @FunctionalInterface
     public interface EnumeratedF<X, Y> {
 
@@ -354,6 +390,22 @@ public final class Util {
 
     public static <X> List<X> dropRight(List<X> xs, int n) {
         return xs.subList(0, xs.size() - n);
+    }
+
+    public static <X> List<X> dropLeft(List<X> xs, int n) {
+        return xs.size() <= n
+                ? List.of()
+                : xs.subList(n, xs.size());
+    }
+
+    public static <X> Stream<X> dropLeft(Stream<X> xs, int n) {
+        return xs.skip(1);
+    }
+
+    // tails [1, 2] => [[1,2], [2], []]
+    public static <X> Stream<List<X>> tails(List<X> xs) {
+        return IntStream.rangeClosed(0, xs.size())
+                .mapToObj(i -> xs.subList(i, xs.size()));
     }
 
     public static <X, Y> Y reduce(Stream<X> xs, Y init, BiFunction<Y, ? super X, Y> fn) {
