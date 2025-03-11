@@ -1,6 +1,6 @@
 package compojar.model;
 
-import compojar.model.GrammarTree.Leaf;
+import compojar.model.GrammarNode.Leaf;
 import compojar.util.Util;
 
 import java.util.Optional;
@@ -12,9 +12,9 @@ import static java.lang.String.format;
 
 public final class Keys {
 
-    public static final Key<GrammarTree> PARENT = new NamedKey<>("parent") {
+    public static final Key<GrammarNode> PARENT = new NamedKey<>("parent") {
         @Override
-        public GrammarTreeModel _set(GrammarTreeModel model, GrammarTree node, GrammarTree parent, Optional<GrammarTree> maybeOldParent) {
+        public GrammarTreeModel _set(GrammarTreeModel model, GrammarNode node, GrammarNode parent, Optional<GrammarNode> maybeOldParent) {
             model.assertContainsAll(node, parent);
 
             if (node.equals(parent)) {
@@ -38,16 +38,16 @@ public final class Keys {
         }
 
         @Override
-        public GrammarTreeModel _remove(GrammarTreeModel model, GrammarTree node, GrammarTree parent) {
+        public GrammarTreeModel _remove(GrammarTreeModel model, GrammarNode node, GrammarNode parent) {
             return model.updateAttribute(parent, CHILDREN, children -> remove(children, node));
         }
 
         @Override
         protected GrammarTreeModel removeNode(
                 GrammarTreeModel model,
-                GrammarTree node,
-                GrammarTree parent,
-                GrammarTree removedNode)
+                GrammarNode node,
+                GrammarNode parent,
+                GrammarNode removedNode)
         {
             if (removedNode.equals(parent)) {
                 return model.removeAttribute(PARENT, node);
@@ -58,23 +58,23 @@ public final class Keys {
         }
     };
 
-    public static Stream<GrammarTree> ancestors(GrammarTreeModel model, GrammarTree node) {
+    public static Stream<GrammarNode> ancestors(GrammarTreeModel model, GrammarNode node) {
         return PARENT.get(model, node)
                 .map(parent -> Stream.concat(Stream.of(parent), ancestors(model, parent)))
                 .orElseGet(Stream::of);
     }
 
-    public static boolean isAncestor(GrammarTreeModel model, GrammarTree ancestor, GrammarTree node) {
+    public static boolean isAncestor(GrammarTreeModel model, GrammarNode ancestor, GrammarNode node) {
         return ancestors(model, node).anyMatch(ancestor::equals);
     }
 
-    public static final Key<Set<GrammarTree>> CHILDREN = new NamedKey<>("children") {
+    public static final Key<Set<GrammarNode>> CHILDREN = new NamedKey<>("children") {
         @Override
         public GrammarTreeModel _set(
                 GrammarTreeModel model,
-                GrammarTree node,
-                Set<GrammarTree> children,
-                Optional<Set<GrammarTree>> maybeOldChildren)
+                GrammarNode node,
+                Set<GrammarNode> children,
+                Optional<Set<GrammarNode>> maybeOldChildren)
         {
             if (children.contains(node)) {
                 throw new IllegalArgumentException(format("Node cannot be its own child.\nNode: [%s]\nChildren: [%s]",
@@ -86,24 +86,24 @@ public final class Keys {
         }
 
         @Override
-        public boolean canCopy(GrammarTreeModel model, GrammarTree from, GrammarTree to, Set<GrammarTree> attribute) {
+        public boolean canCopy(GrammarTreeModel model, GrammarNode from, GrammarNode to, Set<GrammarNode> attribute) {
             return false;
         }
     };
 
-    public static Stream<GrammarTree> allChildren(GrammarTreeModel model, GrammarTree node) {
+    public static Stream<GrammarNode> allChildren(GrammarTreeModel model, GrammarNode node) {
         return model.get(node, CHILDREN).orElseGet(Set::of)
                 .stream()
                 .flatMap(c -> Stream.concat(Stream.of(c), allChildren(model, c)));
     }
 
-    public static final Key<GrammarTree> NEXT = new NamedKey<>("next") {
+    public static final Key<GrammarNode> NEXT = new NamedKey<>("next") {
         @Override
         public GrammarTreeModel _set(
                 GrammarTreeModel model,
-                GrammarTree node,
-                GrammarTree next,
-                Optional<GrammarTree> maybeOldNext)
+                GrammarNode node,
+                GrammarNode next,
+                Optional<GrammarNode> maybeOldNext)
         {
             model.assertContains(node);
             model.assertContains(next);
@@ -117,7 +117,7 @@ public final class Keys {
         }
     };
 
-    public static Stream<GrammarTree> allNexts(GrammarTreeModel model, GrammarTree node) {
+    public static Stream<GrammarNode> allNexts(GrammarTreeModel model, GrammarNode node) {
         return model._getAttribute(node, NEXT)
                     .map(next -> Stream.concat(Stream.of(next), allNexts(model, next)))
                     .orElseGet(Stream::of);

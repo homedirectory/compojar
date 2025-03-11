@@ -29,7 +29,7 @@ public final class Inline {
     /**
      * Inlines the tree at the specified node, effectively inlining the sub-tree rooted at the specified node.
      */
-    public static GrammarTreeModel inline(GrammarTreeModel model, GrammarTree node, NodeFactory nodeFactory) {
+    public static GrammarTreeModel inline(GrammarTreeModel model, GrammarNode node, NodeFactory nodeFactory) {
         model.assertContains(node);
 
         final var newModel = inlineChildren(node, model, nodeFactory);
@@ -38,10 +38,10 @@ public final class Inline {
             return newModel;
 
         return switch (node) {
-            case GrammarTree.Leaf $ -> newModel;
-            case GrammarTree.Node $ -> newModel;
-            case GrammarTree.FreeNode freeNode
-                    when PARENT.get(newModel, freeNode).filter(GrammarTree.FreeNode.class::isInstance).isPresent()
+            case GrammarNode.Leaf $ -> newModel;
+            case GrammarNode.Full $ -> newModel;
+            case GrammarNode.Free freeNode
+                    when PARENT.get(newModel, freeNode).filter(GrammarNode.Free.class::isInstance).isPresent()
                     ->
             {
                 var parent = newModel.requireAttribute(freeNode, PARENT);
@@ -50,15 +50,15 @@ public final class Inline {
                         .removeNode(freeNode)
                         .setAll(children.stream().map(c -> t3(c, PARENT, parent)));
             }
-            case GrammarTree.FreeNode freeNode
-                    when PARENT.get(newModel, freeNode).filter(GrammarTree.Node.class::isInstance).isPresent()
+            case GrammarNode.Free freeNode
+                    when PARENT.get(newModel, freeNode).filter(GrammarNode.Full.class::isInstance).isPresent()
                     -> inlineFreeNode(freeNode, newModel, nodeFactory);
             default -> throw new IllegalStateException();
         };
     }
 
     private static GrammarTreeModel inlineFreeNode(
-            GrammarTree.FreeNode node,
+            GrammarNode.Free node,
             GrammarTreeModel model,
             NodeFactory nodeFactory)
     {
@@ -66,7 +66,7 @@ public final class Inline {
         var maybeNext = model.get(node, NEXT);
         var children = model.get(node, CHILDREN).orElseGet(Set::of);
         var ms = children.stream().map($ -> nodeFactory.newNode(parent.name())).toList();
-        var nexts = children.stream().map($ -> maybeNext.map(GrammarTree::copy)).flatMap(Optional::stream).toList();
+        var nexts = children.stream().map($ -> maybeNext.map(GrammarNode::copy)).flatMap(Optional::stream).toList();
 
         model = model
                 .addNodes(ms)
@@ -85,7 +85,7 @@ public final class Inline {
                 .removeNodes(maybeNext.stream());
     }
 
-    private static GrammarTreeModel inlineChildren(GrammarTree node, GrammarTreeModel model, NodeFactory nodeFactory) {
+    private static GrammarTreeModel inlineChildren(GrammarNode node, GrammarTreeModel model, NodeFactory nodeFactory) {
         return foldl((accModel, c) -> inline(accModel, c, nodeFactory),
                      model,
                      model.get(node, CHILDREN).orElseGet(Set::of));

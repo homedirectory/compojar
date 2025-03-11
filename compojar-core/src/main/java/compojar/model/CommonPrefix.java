@@ -1,6 +1,6 @@
 package compojar.model;
 
-import compojar.model.GrammarTree.FreeNode;
+import compojar.model.GrammarNode.Free;
 import compojar.util.T2;
 import compojar.util.T3;
 
@@ -26,7 +26,7 @@ public final class CommonPrefix {
 
     public static GrammarTreeModel removeCommonPrefix(
             GrammarTreeModel model,
-            Function<? super GrammarTree, ?> nodeClassifier,
+            Function<? super GrammarNode, ?> nodeClassifier,
             NodeFactory nodeFactory)
     {
         var commonPrefix = findCommonPrefix(model, model.root(), nodeClassifier);
@@ -37,7 +37,7 @@ public final class CommonPrefix {
             var commonParent = commonAncestor(model, commonPrefix)
                     .orElseThrow(() -> new IllegalStateException(format("Common prefix has no common parent: [%s]", commonPrefix)));
 
-            if (!(commonParent instanceof FreeNode)) {
+            if (!(commonParent instanceof Free)) {
                 throw new IllegalStateException(
                         format("Common parent of a common prefix must be a free node.\nCommon prefix: %s\nParent: %s",
                                commonPrefix, commonParent));
@@ -49,14 +49,14 @@ public final class CommonPrefix {
 
     public static GrammarTreeModel _removeCommonPrefix(
             GrammarTreeModel model,
-            Function<? super GrammarTree, ?> nodeClassifier,
+            Function<? super GrammarNode, ?> nodeClassifier,
             NodeFactory nodeFactory,
-            Set<GrammarTree> commonPrefix)
+            Set<GrammarNode> commonPrefix)
     {
         var commonParent = commonAncestor(model, commonPrefix)
                 .orElseThrow(() -> new IllegalStateException(format("Common prefix has no common parent: [%s]", commonPrefix)));
 
-        if (!(commonParent instanceof FreeNode)) {
+        if (!(commonParent instanceof Free)) {
             throw new IllegalStateException(
                     format("Common parent of a common prefix must be a free node.\nCommon prefix: %s\nParent: %s",
                            commonPrefix, commonParent));
@@ -66,7 +66,7 @@ public final class CommonPrefix {
 
         // A pre-common-parent of N is a child of `commonParent` on the path between N and `commonParent`.
         // Or, node U_i, where `parent(U_i) = commonParent` and `ancestors(N_i)` contains `U_i`.
-        final List<GrammarTree> preCommonParents;
+        final List<GrammarNode> preCommonParents;
         {
             var newModelRef = new AtomicReference<>(newModel);
             preCommonParents = commonPrefix
@@ -97,7 +97,7 @@ public final class CommonPrefix {
         // If P is the common parent, introduce a new full node X as a parent of N and let parent(X) = P.
         newModel = foldl((accModel, node) -> {
                              // var nodeParent = accModel.getF(node, PARENT);
-                             final GrammarTree nodeParent;
+                             final GrammarNode nodeParent;
                              if (accModel.getF(node, PARENT).equals(commonParent)) {
                                  nodeParent = nodeFactory.newNode();
                                  accModel = accModel.set(nodeParent, PARENT, commonParent);
@@ -136,16 +136,16 @@ public final class CommonPrefix {
         return newModel;
     }
 
-    public static Set<GrammarTree> findCommonPrefix(GrammarTreeModel model, Function<? super GrammarTree, ?> nodeClassifier) {
+    public static Set<GrammarNode> findCommonPrefix(GrammarTreeModel model, Function<? super GrammarNode, ?> nodeClassifier) {
         return findCommonPrefix(model, model.root(), nodeClassifier);
     }
 
-    public static Set<GrammarTree> findCommonPrefix(GrammarTreeModel model, GrammarTree node, Function<? super GrammarTree, ?> nodeClassifier) {
+    public static Set<GrammarNode> findCommonPrefix(GrammarTreeModel model, GrammarNode node, Function<? super GrammarNode, ?> nodeClassifier) {
         var allPaths = generatePaths(model, node).toList();
 
         // A group is a set of paths that share a common prefix symbol.
         // A group is a set of pairs (path, common prefix symbol index)
-        Collection<List<T2<List<GrammarTree>, Integer>>> groups =
+        Collection<List<T2<List<GrammarNode>, Integer>>> groups =
                 generatePairs(allPaths)
                         .map(pathPair -> pathPair
                                 .map((path1, path2) -> findCommonPrefix(path1, path2, nodeClassifier))
@@ -163,18 +163,20 @@ public final class CommonPrefix {
         // Efficient lookup of common prefix symbol indexes.
         // Key: path.
         // Value: indexes of all common prefix symbols that occur in this path (may span several groups).
-        Map<List<GrammarTree>, List<Integer>> pathIndexes = groups.stream()
+        Map<List<GrammarNode>, List<Integer>> pathIndexes = groups
+                .stream()
                 .flatMap(List::stream)
                 .collect(groupingBy(T2::fst, mapping(T2::snd, toList())));
 
         // Choose a group that has a subset of paths in which no path has an earlier common prefix symbol.
         // I.e., the shortest distance to a common prefix symbol.
 
-        List<T2<List<GrammarTree>, Integer>> chosenGroup = groups.stream()
+        List<T2<List<GrammarNode>, Integer>> chosenGroup = groups
+                .stream()
                 .map(group -> {
                     var paths = group.stream()
-                            .filter(pair -> pair.map((path, idx) -> isMinIndex(path, idx, pathIndexes)))
-                            .toList();
+                                     .filter(pair -> pair.map((path, idx) -> isMinIndex(path, idx, pathIndexes)))
+                                     .toList();
                     return Optional.of(paths).filter(it -> it.size() > 1);
                 })
                 .flatMap(Optional::stream)
@@ -198,11 +200,11 @@ public final class CommonPrefix {
     }
 
     static Optional<T2<Integer, Integer>> findCommonPrefix(
-            List<GrammarTree> path1,
-            List<GrammarTree> path2,
-            Function<? super GrammarTree, ?> nodeClassifier)
+            List<GrammarNode> path1,
+            List<GrammarNode> path2,
+            Function<? super GrammarNode, ?> nodeClassifier)
     {
-        BiPredicate<GrammarTree, GrammarTree> areNodesEqual = (node1, node2) -> nodeClassifier.apply(node1).equals(nodeClassifier.apply(node2));
+        BiPredicate<GrammarNode, GrammarNode> areNodesEqual = (node1, node2) -> nodeClassifier.apply(node1).equals(nodeClassifier.apply(node2));
 
         var sharedPrefixSize = (int) zip(path1, path2)
                 .takeWhile(pair -> pair.test(areNodesEqual))
@@ -231,21 +233,21 @@ public final class CommonPrefix {
         return t2(t2(pair1.fst(), pair2.fst()), t2(pair1.snd(), pair2.snd()));
     }
 
-    private static Stream<T3<GrammarTree, List<GrammarTree>, Integer>> indexPath(List<GrammarTree> path) {
+    private static Stream<T3<GrammarNode, List<GrammarNode>, Integer>> indexPath(List<GrammarNode> path) {
         return enumeratedStream(path.stream(), (node, i) -> t3(node, path, i));
     }
 
-    private static boolean isMinIndex(List<GrammarTree> path, Integer idx, Map<List<GrammarTree>, ? extends Collection<Integer>> indexes) {
+    private static boolean isMinIndex(List<GrammarNode> path, Integer idx, Map<List<GrammarNode>, ? extends Collection<Integer>> indexes) {
         return indexes.get(path).stream().min(Integer::compareTo).get().intValue() == idx;
     }
 
-    static Stream<List<GrammarTree>> generatePaths(GrammarTreeModel model) {
+    static Stream<List<GrammarNode>> generatePaths(GrammarTreeModel model) {
         var children = model.get(model.root(), CHILDREN).orElseGet(Set::of);
         return children.stream()
                 .flatMap(c -> generatePaths(model, c));
     }
 
-    static Stream<List<GrammarTree>> generatePaths(GrammarTreeModel model, GrammarTree node) {
+    static Stream<List<GrammarNode>> generatePaths(GrammarTreeModel model, GrammarNode node) {
         if (node.equals(model.root())) {
             return generatePaths(model);
         }
@@ -269,14 +271,14 @@ public final class CommonPrefix {
                 .flatMap(x -> ys.stream().map(y -> t2(x, y)));
     }
 
-    public static Optional<GrammarTree> commonAncestor(GrammarTreeModel model, GrammarTree node1, GrammarTree node2) {
+    public static Optional<GrammarNode> commonAncestor(GrammarTreeModel model, GrammarNode node1, GrammarNode node2) {
         var ancestors1 = ancestors(model, node1).collect(toSet());
         return ancestors(model, node2)
                 .filter(ancestors1::contains)
                 .findFirst();
     }
 
-    public static Optional<GrammarTree> commonAncestor(GrammarTreeModel model, Collection<GrammarTree> nodes) {
+    public static Optional<GrammarNode> commonAncestor(GrammarTreeModel model, Collection<GrammarNode> nodes) {
         if (nodes.size() < 2) {
             return Optional.empty();
         }
@@ -292,7 +294,7 @@ public final class CommonPrefix {
      * Path from child to parent, including the parent.
      * If child equals parent, an empty path.
      */
-    static Optional<List<GrammarTree>> pathToParent(GrammarTreeModel model, GrammarTree child, GrammarTree parent) {
+    static Optional<List<GrammarNode>> pathToParent(GrammarTreeModel model, GrammarNode child, GrammarNode parent) {
         if (child.equals(parent)) {
             return Optional.of(List.of());
         }
@@ -300,7 +302,7 @@ public final class CommonPrefix {
         final var path = foldMaybe((parents, node) -> !parents.isEmpty() && parents.getFirst().equals(parent)
                                            ? Optional.empty()
                                            : Optional.of(cons(node, parents)),
-                                   List.<GrammarTree>of(),
+                                   List.<GrammarNode>of(),
                                    ancestors(model, child))
                 .reversed();
 

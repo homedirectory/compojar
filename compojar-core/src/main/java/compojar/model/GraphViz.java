@@ -21,7 +21,7 @@ import static java.util.stream.IntStream.iterate;
 public final class GraphViz {
 
     public static String toDot(final GrammarTreeModel model) {
-        Map<GrammarTree, String> dot_nodeNames = zip(model.nodes().stream(), iterate(1, i -> i + 1))
+        Map<GrammarNode, String> dot_nodeNames = zip(model.nodes().stream(), iterate(1, i -> i + 1))
                 .collect(toMapFromPairs((node, $) -> node,
                                         ($, i) -> "x" + i));
 
@@ -39,20 +39,20 @@ public final class GraphViz {
                     }
                     else {
                         var result = switch (node) {
-                            case GrammarTree.Node it -> "%s -> %s"
+                            case GrammarNode.Full it -> "%s -> %s"
                                     .formatted(dot_nodeNames.get(it),
                                                dot_nodeNames.get(first(children)));
-                            case GrammarTree.FreeNode it -> "%s -> {%s} [style=dashed]"
+                            case GrammarNode.Free it -> "%s -> {%s} [style=dashed]"
                                     .formatted(dot_nodeNames.get(it),
                                                children.stream().map(dot_nodeNames::get).collect(joining(" ")));
-                            case GrammarTree.Leaf it -> throw new IllegalStateException(format("Unexpected node with children: %s", it));
+                            case GrammarNode.Leaf it -> throw new IllegalStateException(format("Unexpected node with children: %s", it));
                         };
                         return Stream.of(result);
                     }
                 })
                 .toList();
 
-        List<List<GrammarTree>> nextsGroups = model
+        List<List<GrammarNode>> nextsGroups = model
                 .nodes()
                 .stream()
                 .filter(node -> model.has(node, PARENT) && model.has(node, NEXT))

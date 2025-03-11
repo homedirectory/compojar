@@ -1,16 +1,16 @@
 package compojar.model;
 
-import compojar.model.GrammarTree.FreeNode;
-import compojar.model.GrammarTree.Node;
+import compojar.model.GrammarNode.Free;
+import compojar.model.GrammarNode.Full;
 
 public interface NodeFactory {
 
-    FreeNode newFreeNode();
+    Free newFreeNode();
 
-    FreeNode newFreeNode(CharSequence nameHint);
+    Free newFreeNode(CharSequence nameHint);
 
-    Node newNode();
+    Full newNode();
 
-    Node newNode(CharSequence nameHint);
+    Full newNode(CharSequence nameHint);
 
 }
