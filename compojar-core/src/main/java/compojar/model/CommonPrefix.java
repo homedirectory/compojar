@@ -72,8 +72,7 @@ public final class CommonPrefix {
             preCommonAncestors = commonPrefix
                     .stream()
                     .map(node -> {
-                        var path = dropRight(pathToAncestor(model, node, commonAncestor).get(), 1);
-                        if (path.isEmpty()) {
+                        if (newModelRef.get().getF(node, PARENT).equals(commonAncestor)) {
                             // When parent(node) == commonAncestor, introduce a new full node between `node` and `commonAncestor`.
                             // The semantics of this new node is the identity function applied to `node`.
                             var interNode = nodeFactory.newNode();
@@ -84,6 +83,7 @@ public final class CommonPrefix {
                             return interNode;
                         }
                         else {
+                            var path = dropRight(pathToAncestor(model, node, commonAncestor).get(), 1);
                             return path.getLast();
                         }
                     })
@@ -94,16 +94,8 @@ public final class CommonPrefix {
         // For each common prefix node N:
         // * disconnect N from its parent P;
         // * make parent(next(N)) = P.
-        // If P is the common ancestor, introduce a new full node X as a parent of N and make parent(X) = P.
         newModel = foldl((accModel, node) -> {
-                             final GrammarNode nodeParent;
-                             if (accModel.getF(node, PARENT).equals(commonAncestor)) {
-                                 nodeParent = nodeFactory.newNode();
-                                 accModel = accModel.set(nodeParent, PARENT, commonAncestor);
-                             }
-                             else {
-                                 nodeParent = accModel.getF(node, PARENT);
-                             }
+                             var nodeParent = accModel.getF(node, PARENT);
                              var maybeNodeNext = accModel.get(node, NEXT);
                              return accModel
                                      .removeAttribute(PARENT, node)
@@ -290,7 +282,7 @@ public final class CommonPrefix {
     }
 
     /**
-     * Path from child to ancestor, including the ancestor.
+     * Path from child to ancestor, excluding the child, including the ancestor.
      * If child equals ancestor, an empty path.
      */
     static Optional<List<GrammarNode>> pathToAncestor(GrammarTreeModel model, GrammarNode child, GrammarNode ancestor) {
