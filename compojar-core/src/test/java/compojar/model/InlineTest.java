@@ -12,8 +12,6 @@ import org.junit.Test;
 import java.util.Set;
 
 import static compojar.bnf.BnfBuilder.start;
-import static compojar.bnf.Rule.derivation;
-import static compojar.bnf.Rule.selection;
 import static compojar.model.Eq.eqOn;
 import static compojar.model.Keys.NEXT;
 import static compojar.model.Keys.PARENT;
@@ -24,7 +22,7 @@ public class InlineTest {
 
     @Test
     public void inline_node_whose_parent_is_free_node() {
-        class InputGrammar extends AbstractGrammar {
+        var inBnf = new AbstractGrammar() {
             Variable E, E1, X, Y;
             Terminal x, y;
 
@@ -36,26 +34,24 @@ public class InlineTest {
                         .derive(Y, y)
                         .$();
             }
-        }
+        }.bnf();
 
-        var inGrammar = new InputGrammar();
-        var inModel = BnfParser.parseBnf(inGrammar.bnf()).model();
+        var inModel = BnfParser.parseBnf(inBnf).model();
 
-        class ExpectedGrammar extends AbstractGrammar {
+        var expectedBnf = new AbstractGrammar() {
             Variable E, X, Y;
             Terminal x, y;
 
             BNF bnf() {
-                return new BNF(
-                        Set.of(selection(E, X, Y),
-                               derivation(X, x),
-                               derivation(Y, y)),
-                        E);
+                return start(E)
+                        .select(E, X, Y)
+                        .derive(X, x)
+                        .derive(Y, y)
+                        .$();
             }
-        }
+        }.bnf();
 
-        var expectedGrammar = new ExpectedGrammar();
-        var expectedModel = BnfParser.parseBnf(expectedGrammar.bnf()).model();
+        var expectedModel = BnfParser.parseBnf(expectedBnf).model();
 
         var inlinedModel = Inline.inline(inModel, new TestNodeFactory());
 
@@ -119,6 +115,7 @@ public class InlineTest {
                 .satisfies(it -> assertThat(it.name()).isEqualTo("sqrt"));
     }
 
+    // TODO: Refactor using semantic comparison.
     @Test
     public void inline_recursively() {
         GrammarNode E = new Free("E"),
