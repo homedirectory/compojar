@@ -34,16 +34,16 @@ public final class CommonPrefix {
             return model;
         }
         else {
-            var commonParent = commonAncestor(model, commonPrefix)
-                    .orElseThrow(() -> new IllegalStateException(format("Common prefix has no common parent: [%s]", commonPrefix)));
+            var commonAncestor = commonAncestor(model, commonPrefix)
+                    .orElseThrow(() -> new IllegalStateException(format("Common prefix has no common ancestor: [%s]", commonPrefix)));
 
-            if (!(commonParent instanceof Free)) {
+            if (!(commonAncestor instanceof Free)) {
                 throw new IllegalStateException(
-                        format("Common parent of a common prefix must be a free node.\nCommon prefix: %s\nParent: %s",
-                               commonPrefix, commonParent));
+                        format("Common ancestor of a common prefix must be a free node.\nCommon prefix: %s\nAncestor: %s",
+                               commonPrefix, commonAncestor));
             }
 
-            return _removeCommonPrefix(inline(model, commonParent, nodeFactory), nodeClassifier, nodeFactory, commonPrefix);
+            return _removeCommonPrefix(inline(model, commonAncestor, nodeFactory), nodeClassifier, nodeFactory, commonPrefix);
         }
     }
 
@@ -53,33 +53,33 @@ public final class CommonPrefix {
             NodeFactory nodeFactory,
             Set<GrammarNode> commonPrefix)
     {
-        var commonParent = commonAncestor(model, commonPrefix)
-                .orElseThrow(() -> new IllegalStateException(format("Common prefix has no common parent: [%s]", commonPrefix)));
+        var commonAncestor = commonAncestor(model, commonPrefix)
+                .orElseThrow(() -> new IllegalStateException(format("Common prefix has no common ancestor: [%s]", commonPrefix)));
 
-        if (!(commonParent instanceof Free)) {
+        if (!(commonAncestor instanceof Free)) {
             throw new IllegalStateException(
-                    format("Common parent of a common prefix must be a free node.\nCommon prefix: %s\nParent: %s",
-                           commonPrefix, commonParent));
+                    format("Common ancestor of a common prefix must be a free node.\nCommon prefix: %s\nAncestor: %s",
+                           commonPrefix, commonAncestor));
         }
 
         var newModel = model;
 
-        // A pre-common-parent of N is a child of `commonParent` on the path between N and `commonParent`.
-        // Or, node U_i, where `parent(U_i) = commonParent` and `ancestors(N_i)` contains `U_i`.
-        final List<GrammarNode> preCommonParents;
+        // A pre-common-ancestor of N is a child of `commonAncestor` on the path between N and `commonAncestor`.
+        // I.e., node U_i, where `parent(U_i) = commonAncestor` and `ancestors(N_i)` contains `U_i`.
+        final List<GrammarNode> preCommonAncestors;
         {
             var newModelRef = new AtomicReference<>(newModel);
-            preCommonParents = commonPrefix
+            preCommonAncestors = commonPrefix
                     .stream()
                     .map(node -> {
-                        var path = dropRight(pathToParent(model, node, commonParent).get(), 1);
+                        var path = dropRight(pathToAncestor(model, node, commonAncestor).get(), 1);
                         if (path.isEmpty()) {
-                            // When parent(node) == commonParent, introduce a new full node between `node` and `commonParent`.
+                            // When parent(node) == commonAncestor, introduce a new full node between `node` and `commonAncestor`.
                             // The semantics of this new node is the identity function applied to `node`.
                             var interNode = nodeFactory.newNode();
                             newModelRef.set(newModelRef.get()
                                                        .addNode(interNode)
-                                                       .set(interNode, PARENT, commonParent)
+                                                       .set(interNode, PARENT, commonAncestor)
                                                        .set(node, PARENT, interNode));
                             return interNode;
                         }
@@ -91,16 +91,15 @@ public final class CommonPrefix {
             newModel = newModelRef.get();
         }
 
-        // For each common prefix node N,
-        // disconnect N from its parent P,
-        // make parent(next(N)) = P.
-        // If P is the common parent, introduce a new full node X as a parent of N and let parent(X) = P.
+        // For each common prefix node N:
+        // * disconnect N from its parent P;
+        // * make parent(next(N)) = P.
+        // If P is the common ancestor, introduce a new full node X as a parent of N and make parent(X) = P.
         newModel = foldl((accModel, node) -> {
-                             // var nodeParent = accModel.getF(node, PARENT);
                              final GrammarNode nodeParent;
-                             if (accModel.getF(node, PARENT).equals(commonParent)) {
+                             if (accModel.getF(node, PARENT).equals(commonAncestor)) {
                                  nodeParent = nodeFactory.newNode();
-                                 accModel = accModel.set(nodeParent, PARENT, commonParent);
+                                 accModel = accModel.set(nodeParent, PARENT, commonAncestor);
                              }
                              else {
                                  nodeParent = accModel.getF(node, PARENT);
@@ -118,20 +117,20 @@ public final class CommonPrefix {
         var commonPrefixNode = first(commonPrefix);
         newModel = newModel.removeNodes(remove(commonPrefix, commonPrefixNode));
 
-        // Add a new child to the common parent, a full node whose child is the common prefix node.
+        // Add a new child to the common ancestor, a full node whose child is the common prefix node.
         var $1 = nodeFactory.newNode();
         newModel = newModel
                 .addNode($1)
                 .set(commonPrefixNode, PARENT, $1)
-                .set($1, PARENT, commonParent);
+                .set($1, PARENT, commonAncestor);
 
         // Next node of the common prefix node.
-        // Its children are the pre-common-parents.
+        // Its children are the pre-common-ancestors.
         var $2 = nodeFactory.newFreeNode();
         newModel = newModel
                 .addNode($2)
                 .set(commonPrefixNode, NEXT, $2)
-                .setAll(preCommonParents.stream().map(node -> t3(node, PARENT, $2)));
+                .setAll(preCommonAncestors.stream().map(node -> t3(node, PARENT, $2)));
 
         return newModel;
     }
@@ -271,14 +270,14 @@ public final class CommonPrefix {
                 .flatMap(x -> ys.stream().map(y -> t2(x, y)));
     }
 
-    public static Optional<GrammarNode> commonAncestor(GrammarTreeModel model, GrammarNode node1, GrammarNode node2) {
+    static Optional<GrammarNode> commonAncestor(GrammarTreeModel model, GrammarNode node1, GrammarNode node2) {
         var ancestors1 = ancestors(model, node1).collect(toSet());
         return ancestors(model, node2)
                 .filter(ancestors1::contains)
                 .findFirst();
     }
 
-    public static Optional<GrammarNode> commonAncestor(GrammarTreeModel model, Collection<GrammarNode> nodes) {
+    static Optional<GrammarNode> commonAncestor(GrammarTreeModel model, Collection<GrammarNode> nodes) {
         if (nodes.size() < 2) {
             return Optional.empty();
         }
@@ -291,22 +290,22 @@ public final class CommonPrefix {
     }
 
     /**
-     * Path from child to parent, including the parent.
-     * If child equals parent, an empty path.
+     * Path from child to ancestor, including the ancestor.
+     * If child equals ancestor, an empty path.
      */
-    static Optional<List<GrammarNode>> pathToParent(GrammarTreeModel model, GrammarNode child, GrammarNode parent) {
-        if (child.equals(parent)) {
+    static Optional<List<GrammarNode>> pathToAncestor(GrammarTreeModel model, GrammarNode child, GrammarNode ancestor) {
+        if (child.equals(ancestor)) {
             return Optional.of(List.of());
         }
 
-        final var path = foldMaybe((parents, node) -> !parents.isEmpty() && parents.getFirst().equals(parent)
+        final var path = foldMaybe((ancestors, node) -> !ancestors.isEmpty() && ancestors.getFirst().equals(ancestor)
                                            ? Optional.empty()
-                                           : Optional.of(cons(node, parents)),
+                                           : Optional.of(cons(node, ancestors)),
                                    List.<GrammarNode>of(),
                                    ancestors(model, child))
                 .reversed();
 
-        if (!path.isEmpty() && path.getLast().equals(parent)) {
+        if (!path.isEmpty() && path.getLast().equals(ancestor)) {
             return Optional.of(path);
         }
         else {
