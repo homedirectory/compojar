@@ -13,7 +13,7 @@ public sealed interface GrammarNode {
 
     /**
      * A full node corresponds to a left-hand side symbol of a derivation rule.
-     * A node of this type should have a single child.
+     * A node of this type may have no children (empty derivation) or a single child.
      */
     record Full (CharSequence name)
         implements GrammarNode

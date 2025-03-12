@@ -559,14 +559,6 @@ public final class Util {
         return map.entrySet().stream().map(entry -> fn.apply(entry.getKey(), entry.getValue()));
     }
 
-    // public static <X, Y> Stream<T2<X, Y>> zip(Iterable<X> xs, Iterable<Y> ys) {
-    //
-    // }
-    //
-    // public static <X, Y, Z> Stream<T3<X, Y, Z>> zip3(Iterable<X> xs, Iterable<Y> ys, Iterable<Z> zs) {
-    //
-    // }
-
     // ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     private Util() {};
