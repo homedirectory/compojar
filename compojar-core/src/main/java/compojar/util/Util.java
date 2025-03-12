@@ -545,6 +545,15 @@ public final class Util {
                      xs.entrySet());
     }
 
+    public static <X> Stream<T2<X, X>> permuteInPairs(List<X> xs) {
+        return generatePairs(xs)
+                .flatMap(pair -> Stream.of(pair, pair.swap()));
+    }
+
+    private static <X> Stream<T2<X, X>> generatePairs(List<X> xs) {
+        return zipWith(xs.stream(), dropLeft(tails(xs), 1), (hd, tl) -> tl.stream().map(tlElt -> t2(hd, tlElt)))
+                .flatMap(Function.identity());
+    }
 
     public static <K,V,Z> Stream<Z> stream(Map<K, V> map, BiFunction<? super K, ? super V, Z> fn) {
         return map.entrySet().stream().map(entry -> fn.apply(entry.getKey(), entry.getValue()));

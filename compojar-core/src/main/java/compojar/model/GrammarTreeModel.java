@@ -39,6 +39,10 @@ public record GrammarTreeModel (
         return eqOn(GrammarTreeModel::attributes, (Eq) eqMapAt(key, eqVal));
     }
 
+    public Optional<GrammarNode> findNode(Predicate<? super GrammarNode> predicate) {
+        return nodes.stream().filter(predicate).findFirst();
+    }
+
     /**
      * Not to be used directly. Use {@link Key#set(GrammarTreeModel, GrammarNode, Object)}.
      * <p>

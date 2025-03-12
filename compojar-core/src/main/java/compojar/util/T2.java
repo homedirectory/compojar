@@ -46,4 +46,13 @@ public record T2<A, B> (A fst, B snd) {
         return Stream.of(pair.fst, pair.snd);
     }
 
+    public T2<B, A> swap() {
+        return new T2<>(snd, fst);
+    }
+
+    @Override
+    public String toString() {
+        return "(%s, %s)".formatted(fst, snd);
+    }
+
 }
