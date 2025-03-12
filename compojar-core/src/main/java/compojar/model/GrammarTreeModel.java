@@ -10,6 +10,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import static compojar.model.Eq.eqMapAt;
+import static compojar.model.Eq.eqOn;
 import static compojar.util.T3.t3;
 import static compojar.util.Util.*;
 import static java.lang.String.format;
@@ -28,6 +30,13 @@ public record GrammarTreeModel (
 
     public GrammarTreeModel(Set<GrammarNode> nodes, GrammarNode root) {
         this(nodes, root, Map.of());
+    }
+
+    /**
+     * Returns an Eq that compares all nodes on attribute values associated with the specified key.
+     */
+    public static <V> Eq<GrammarTreeModel> eqAttribute(Key<V> key, Eq<V> eqVal) {
+        return eqOn(GrammarTreeModel::attributes, (Eq) eqMapAt(key, eqVal));
     }
 
     /**
