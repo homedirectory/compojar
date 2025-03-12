@@ -18,6 +18,37 @@ public final class Util {
         return unmodifiableList(list);
     }
 
+    public static <X> Optional<T2<X, List<X>>> uncons(Iterable<X> xs) {
+        if (xs instanceof List<X> list) {
+            if (list.isEmpty()) {
+                return Optional.empty();
+            }
+            else {
+                return Optional.of(t2(list.getFirst(), list.subList(1, list.size())));
+            }
+        }
+        else {
+            var iter = xs.iterator();
+            if (!iter.hasNext()) {
+                return Optional.empty();
+            }
+            else {
+                return Optional.of(t2(iter.next(), makeList(iter)));
+            }
+        }
+    }
+
+    private static <X> List<X> makeList(Iterator<X> iterator) {
+        if (!iterator.hasNext()) {
+            return List.of();
+        }
+        else {
+            var list = new ArrayList<X>();
+            iterator.forEachRemaining(list::add);
+            return unmodifiableList(list);
+        }
+    }
+
     public static boolean contentEquals(CharSequence cs1, CharSequence cs2) {
         if (cs1.length() != cs2.length()) {
             return false;
