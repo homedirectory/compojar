@@ -361,6 +361,25 @@ public final class Util {
         return acc;
     }
 
+    public static <X> Stream<List<X>> permutations(List<X> xs) {
+        return uncons(xs)
+                .map(pair -> pair.map((hd, tl) -> tl.isEmpty() ? Stream.of(List.of(hd)) : insertAtAllPositions(permutations(tl), hd)))
+                .orElseGet(Stream::of);
+    }
+
+    private static <X> Stream<List<X>> insertAtAllPositions(Stream<List<X>> lists, X x) {
+        return lists.flatMap(list -> insertAtAllPositions(list, x));
+    }
+
+    private static <X> Stream<List<X>> insertAtAllPositions(List<X> list, X x) {
+        return IntStream.rangeClosed(0, list.size())
+                        .mapToObj(i -> {
+                            var newList = new ArrayList<X>(list.size() + 1);
+                            newList.addAll(list);
+                            newList.add(i, x);
+                            return unmodifiableList(newList);
+                        });
+    }
 
     @FunctionalInterface
     public interface EnumeratedF<X, Y> {
