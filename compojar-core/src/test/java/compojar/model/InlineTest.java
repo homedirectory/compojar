@@ -6,17 +6,12 @@ import compojar.bnf.Terminal;
 import compojar.bnf.Variable;
 import compojar.model.GrammarNode.Free;
 import compojar.model.GrammarNode.Full;
-import compojar.model.GrammarNode.Leaf;
 import org.junit.Test;
-
-import java.util.Set;
 
 import static compojar.bnf.BnfBuilder.start;
 import static compojar.model.Eq.eqOn;
-import static compojar.model.Keys.NEXT;
-import static compojar.model.Keys.PARENT;
-import static compojar.model.TestUtils.grammarEq;
-import static org.assertj.core.api.Assertions.assertThat;
+import static compojar.model.TestUtils.structEquals;
+import static org.junit.Assert.assertTrue;
 
 public class InlineTest {
 
@@ -55,125 +50,128 @@ public class InlineTest {
 
         var inlinedModel = Inline.inline(inModel, new TestNodeFactory());
 
-        assertThat(inlinedModel)
-                .usingEquals(grammarEq(eqOn(GrammarNode::name)))
-                .isEqualTo(expectedModel);
+        assertTrue(structEquals(expectedModel, inlinedModel, eqOn(GrammarNode::name)));
     }
 
-    // TODO: Refactor using semantic comparison.
     @Test
     public void inline_node_whose_parent_is_regular_node() {
-        GrammarNode E = new Free("E"),
-                E1 = new Leaf("E1"),
-                E2 = new Full("E2"),
-                E3 = new Free("E3"),
-                sqrt = new Leaf("sqrt"),
-                Add = new Full("Add"),
-                Neg = new Leaf("Neg"),
-                plus = new Leaf("+");
-                        ;
-        var model = new GrammarTreeModel(Set.of(E, E1, E2, E3, sqrt, Add, Neg, plus), E)
-                .set(E1, PARENT, E)
-                .set(E2, PARENT, E)
-                .set(E3, PARENT, E2)
-                .set(E3, NEXT, sqrt)
-                .set(Add, PARENT, E3)
-                .set(plus, PARENT, Add)
-                .set(Neg, PARENT, E3)
-                ;
+        var inGrammar = new AbstractGrammar() {
+            Variable E, Var, E1, E2, Add, Neg;
+            Terminal sqrt, plus, x, minus;
+
+            BNF bnf() {
+                return start(E)
+                        .select(E, Var, E1)
+                        .derive(Var, x)
+                        .derive(E1, E2, sqrt)
+                        .select(E2, Add, Neg)
+                        .derive(Add, plus)
+                        .derive(Neg, minus)
+                        .$();
+            }
+        };
+
+        var expectedGrammar = new AbstractGrammar() {
+            Variable E, Var, E1, E1$1, E1$2, Add, Neg;
+            Terminal sqrt, plus, x, minus;
+
+            BNF bnf() {
+                return start(E)
+                        .select(E, Var, E1)
+                        .derive(Var, x)
+                        .select(E1, E1$1, E1$2)
+                        .derive(E1$1, Add, sqrt)
+                        .derive(E1$2, Neg, sqrt)
+                        .derive(Add, plus)
+                        .derive(Neg, minus)
+                        .$();
+            }
+        };
+
+        var inModel = BnfParser.parseBnf(inGrammar.bnf()).model();
+        var expectedModel = BnfParser.parseBnf(expectedGrammar.bnf()).model();
 
         var nodeFactory = new TestNodeFactory() {
+            int n = 0;
+
             @Override
             public Full newNode(CharSequence nameHint) {
-                return new Full("$" + nameHint);
+                return new Full(nameHint + "$" + (++n));
             }
 
             @Override
             public Free newFreeNode(CharSequence nameHint) {
-                return new Free("$" + nameHint);
+                return new Free(nameHint + "$" + (++n));
             }
         };
 
-        var inlinedModel = Inline.inline(model, nodeFactory);
+        var inlinedModel = Inline.inline(inModel, nodeFactory);
 
-        assertThat(inlinedModel.nodes())
-                .extracting(GrammarNode::name)
-                .containsExactlyInAnyOrder("E", "E1", "$E2", "$E2", "sqrt", "sqrt", "Add", "Neg", "+");
-
-        assertThat(inlinedModel.requireAttribute(E1, PARENT)).isEqualTo(E);
-        assertThat(inlinedModel.requireAttribute(plus, PARENT)).isEqualTo(Add);
-
-        final var _E2_of_Add = inlinedModel.requireAttribute(Add, PARENT);
-        final var _E2_of_Neg = inlinedModel.requireAttribute(Neg, PARENT);
-        assertThat(inlinedModel.requireAttribute(_E2_of_Add, PARENT))
-                .isEqualTo(E);
-        assertThat(inlinedModel.requireAttribute(_E2_of_Neg, PARENT))
-                .isEqualTo(E);
-        assertThat(inlinedModel.requireAttribute(Add, NEXT))
-                .satisfies(it -> assertThat(it.name()).isEqualTo("sqrt"));
-        assertThat(inlinedModel.requireAttribute(Neg, NEXT))
-                .satisfies(it -> assertThat(it.name()).isEqualTo("sqrt"));
+        assertTrue(structEquals(expectedModel, inlinedModel, eqOn(GrammarNode::name)));
     }
 
-    // TODO: Refactor using semantic comparison.
     @Test
     public void inline_recursively() {
-        GrammarNode E = new Free("E"),
-                E1 = new Full("E1"),
-                E2 = new Free("E2"),
-                E2a = new Free("E2a"),
-                E2a1 = new Leaf("E2a1"),
-                E2a2 = new Leaf("E2a2"),
-                E2b = new Leaf("E2b"),
-                E3 = new Free("E3"),
-                sqrt = new Leaf("sqrt"),
-                Sub = new Free("Sub"),
-                Sub1 = new Leaf("Sub1"),
-                Var = new Leaf("Var")
-                ;
-        var nodes = Set.of(E, E1, E2, E2a, E2a1, E2a2, E2b, E3, sqrt, Sub, Sub1, Var);
-        var model = new GrammarTreeModel(nodes, E)
-                .set(E1, PARENT, E)
-                .set(E2, PARENT, E)
-                .set(E2a, PARENT, E2)
-                .set(E2b, PARENT, E2)
-                .set(E2a1, PARENT, E2a)
-                .set(E2a2, PARENT, E2a)
-                .set(E3, PARENT, E1)
-                .set(E3, NEXT, sqrt)
-                .set(Sub, PARENT, E3)
-                .set(Sub1, PARENT, Sub)
-                .set(Var, PARENT, E3)
-                ;
+        var inGrammar = new AbstractGrammar() {
+            Variable E, E1, E2, E3, Sub, Var, Sub1, E2b, E2a, E2a1, E2a2;
+            Terminal sqrt, x, sub1, e2b, e2a1, e2a2;
+
+            BNF bnf() {
+                return start(E)
+                        .select(E, E1, E2)
+                        .derive(E1, E3, sqrt)
+                        .select(E3, Sub, Var)
+                        .derive(Var, x)
+                        .select(Sub, Sub1)
+                        .derive(Sub1, sub1)
+                        .select(E2, E2b, E2a)
+                        .derive(E2b, e2b)
+                        .select(E2a, E2a1, E2a2)
+                        .derive(E2a1, e2a1)
+                        .derive(E2a2, e2a2)
+                        .$();
+            };
+        };
+
+        var expectedGrammar = new AbstractGrammar() {
+            Variable E, E1, E1$1, E1$2, Var, Sub1, E2b, E2a, E2a1, E2a2;
+            Terminal sqrt, x, sub1, e2b, e2a1, e2a2;
+
+            BNF bnf() {
+                return start(E)
+                        .select(E, E2b, E1, E2a1, E2a2)
+                        .derive(E2b, e2b)
+                        .select(E1, E1$1, E1$2)
+                        .derive(E1$1, Var, sqrt)
+                        .derive(Var, x)
+                        .derive(E1$2, Sub1, sqrt)
+                        .derive(Sub1, sub1)
+                        .derive(E2a1, e2a1)
+                        .derive(E2a2, e2a2)
+                        .$();
+            };
+        };
+
+        var inModel = BnfParser.parseBnf(inGrammar.bnf()).model();
+        var expectedModel = BnfParser.parseBnf(expectedGrammar.bnf()).model();
 
         var nodeFactory = new TestNodeFactory() {
+            int n = 0;
+
             @Override
             public Full newNode(CharSequence nameHint) {
-                return new Full("$" + nameHint);
+                return new Full(nameHint + "$" + (++n));
             }
 
             @Override
             public Free newFreeNode(CharSequence nameHint) {
-                return new Free("$" + nameHint);
+                return new Free(nameHint + "$" + (++n));
             }
         };
 
-        var inlinedModel = Inline.inline(model, nodeFactory);
+        var inlinedModel = Inline.inline(inModel, nodeFactory);
 
-        assertThat(inlinedModel.nodes())
-                .extracting(GrammarNode::name)
-                .containsExactlyInAnyOrder("E", "E2b", "E2a1", "E2a2", "$E1", "$E1", "sqrt", "sqrt", "Sub1", "Var");
-
-        assertThat(inlinedModel.requireAttribute(E2b, PARENT)).isEqualTo(E);
-        assertThat(inlinedModel.requireAttribute(E2a1, PARENT)).isEqualTo(E);
-
-        var _E1_of_Sub1 = inlinedModel.requireAttribute(Sub1, PARENT);
-        var _E1_of_Var = inlinedModel.requireAttribute(Var, PARENT);
-        assertThat(inlinedModel.requireAttribute(_E1_of_Sub1, PARENT)).isEqualTo(E);
-        assertThat(inlinedModel.requireAttribute(_E1_of_Var, PARENT)).isEqualTo(E);
-
-        assertThat(inlinedModel.requireAttribute(Sub1, NEXT)).extracting(GrammarNode::name).isEqualTo("sqrt");
-        assertThat(inlinedModel.requireAttribute(Var, NEXT)).extracting(GrammarNode::name).isEqualTo("sqrt");
+        assertTrue(structEquals(expectedModel, inlinedModel, eqOn(GrammarNode::name)));
     }
 
 }
