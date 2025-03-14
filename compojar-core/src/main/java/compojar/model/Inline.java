@@ -1,13 +1,10 @@
 package compojar.model;
 
-import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import static compojar.model.Keys.*;
 import static compojar.util.T3.t3;
 import static compojar.util.Util.foldl;
-import static compojar.util.Util.zipWith;
 
 /**
  * Inlining of grammar trees.
@@ -52,37 +49,38 @@ public final class Inline {
             }
             case GrammarNode.Free freeNode
                     when PARENT.get(newModel, freeNode).filter(GrammarNode.Full.class::isInstance).isPresent()
-                    -> inlineFreeNode(freeNode, newModel, nodeFactory);
+                    -> inlineFreeNodeWithFullParent(freeNode, newModel, nodeFactory);
             default -> throw new IllegalStateException();
         };
     }
 
-    private static GrammarTreeModel inlineFreeNode(
+    private static GrammarTreeModel inlineFreeNodeWithFullParent(
             GrammarNode.Free node,
             GrammarTreeModel model,
             NodeFactory nodeFactory)
     {
         var parent = model.requireAttribute(node, PARENT);
-        var maybeNext = model.get(node, NEXT);
-        var children = model.get(node, CHILDREN).orElseGet(Set::of);
-        var ms = children.stream().map($ -> nodeFactory.newNode(parent.name())).toList();
-        var nexts = children.stream().map($ -> maybeNext.map(GrammarNode::copy)).flatMap(Optional::stream).toList();
 
-        model = model
-                .addNodes(ms)
-                .addNodes(nexts);
-        model = foldl((accModel, m) -> accModel.copyAttributes(parent, m), model, ms);
-        {
-            final var newModel_ = model;
-            model = maybeNext.map(next -> foldl((accModel, newNext) -> accModel.copyAttributes(next, newNext), newModel_, nexts))
-                    .orElse(model);
-        }
-        model = model.setAll(zipWith(children, ms, (c, m) -> t3(c, PARENT, m)));
-        model = model.setAll(maybeNext.map(next -> zipWith(children, nexts, (c, n) -> t3(c, NEXT, n)))
-                                           .orElseGet(Stream::empty));
-        return model
-                .removeNodes(parent, node)
-                .removeNodes(maybeNext.stream());
+        return foldl((accModel, child) -> {
+                         var p = nodeFactory.newNode(parent.name());
+                         return accModel
+                                 .addNode(p)
+                                 .set(p, PARENT, parent)
+                                 .maybeMap(model.get(parent, NEXT).map(GrammarNode::copy),
+                                           (pNext, m) -> m.addNode(pNext)
+                                                          .set(p, NEXT, pNext))
+                                 .set(child, PARENT, p)
+                                 .maybeMap(model.get(node, NEXT).map(GrammarNode::copy),
+                                           (next, m) -> m.addNode(next)
+                                                         .set(child, NEXT, next));
+                     },
+                     model,
+                     model.get(node, CHILDREN).orElseGet(Set::of))
+                .removeAttribute(NEXT, parent)
+                .replaceNode(parent, new GrammarNode.Free(parent.name()))
+                .removeNode(model.get(node, NEXT))
+                .removeNode(model.get(parent, NEXT))
+                .removeNode(node);
     }
 
     private static GrammarTreeModel inlineChildren(GrammarNode node, GrammarTreeModel model, NodeFactory nodeFactory) {

@@ -5,6 +5,7 @@ import compojar.util.T3;
 import compojar.util.Util;
 
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -43,6 +44,10 @@ public record GrammarTreeModel (
         return nodes.stream().filter(predicate).findFirst();
     }
 
+    public <X> GrammarTreeModel maybeMap(Optional<X> maybeX, BiFunction<? super X, GrammarTreeModel, GrammarTreeModel> fn) {
+        return maybeX.map(x -> fn.apply(x, this)).orElse(this);
+    }
+
     /**
      * Not to be used directly. Use {@link Key#set(GrammarTreeModel, GrammarNode, Object)}.
      * <p>
@@ -66,6 +71,10 @@ public record GrammarTreeModel (
 
     public <V> GrammarTreeModel set(Optional<GrammarNode> node, Key<V> key, V attribute) {
         return node.map(next -> set(next, key, attribute)).orElse(this);
+    }
+
+    public <V> GrammarTreeModel maybeSet(GrammarNode node, Key<V> key, Optional<V> maybeAttribute) {
+        return maybeAttribute.map(a -> set(node, key, a)).orElse(this);
     }
 
     public <V> GrammarTreeModel set(T3<GrammarNode, Key<V>, V> triple) {
@@ -107,6 +116,10 @@ public record GrammarTreeModel (
 
         return model;
    }
+
+    public GrammarTreeModel removeNode(Optional<GrammarNode> maybeNode) {
+        return maybeNode.map(this::removeNode).orElse(this);
+    }
 
     public GrammarTreeModel removeNodes(GrammarNode... nodes) {
         return removeNodes(Arrays.stream(nodes));
@@ -232,6 +245,22 @@ public record GrammarTreeModel (
                                     update(attributes, node, map -> mapRemove(map, key)));
     }
 
+    /**
+     * Replace all occurences of a node.
+     */
+    public GrammarTreeModel replaceNode(GrammarNode oldNode, GrammarNode newNode) {
+        assertContains(oldNode);
+
+        // Adjust attributes with both old and new nodes in the model to avoid "foreign node" errors.
+        var newModel = foldl((acc, t3) -> t3.map((node, key, attr) -> key.replaceNode(acc, node, attr, oldNode, newNode)),
+                             this.addNode(newNode),
+                             streamAttributes());
+
+        return new GrammarTreeModel(
+                replace(newModel.nodes, oldNode, newNode),
+                newModel.root.equals(oldNode) ? newNode : newModel.root,
+                replaceKey(newModel.attributes, oldNode, newNode));
+    }
 
     // public <V> GrammarTreeModel removeAttributesOnValue(Key<V> key, V attribute) {
     //     return new GrammarTreeModel(nodes,

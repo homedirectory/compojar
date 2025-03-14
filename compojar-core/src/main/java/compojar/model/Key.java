@@ -63,4 +63,19 @@ public abstract class Key<V> {
         return true;
     }
 
+    /**
+     * Called before a node is replaced.
+     * When this method is called, both the old and new nodes are already present in the model.
+     * Implementations should operate on a low level, through {@link #_set(GrammarTreeModel, GrammarNode, Object, Optional)}.
+     * The sole effect of the replacement should be the replacement of references to {@code oldNode} by references to {@code newNode}.
+     *
+     * @param node  node bearing the attribute
+     * @param attribute  attribute value
+     * @param oldNode  node being replaced
+     * @param newNode  the replacement node
+     */
+    protected GrammarTreeModel replaceNode(GrammarTreeModel model, GrammarNode node, V attribute, GrammarNode oldNode, GrammarNode newNode) {
+        return model;
+    }
+
 }

@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static compojar.util.Util.remove;
+import static compojar.util.Util.replace;
 import static java.lang.String.format;
 
 public final class Keys {
@@ -56,6 +57,22 @@ public final class Keys {
                 return model;
             }
         }
+
+        @Override
+        protected GrammarTreeModel replaceNode(
+                GrammarTreeModel model,
+                GrammarNode node,
+                GrammarNode parent,
+                GrammarNode oldNode,
+                GrammarNode newNode)
+        {
+            if (oldNode.equals(parent)) {
+                return super._set(model, node, newNode, Optional.of(parent));
+            }
+            else {
+                return super.replaceNode(model, node, parent, oldNode, newNode);
+            }
+        }
     };
 
     public static Stream<GrammarNode> ancestors(GrammarTreeModel model, GrammarNode node) {
@@ -89,6 +106,17 @@ public final class Keys {
         public boolean canCopy(GrammarTreeModel model, GrammarNode from, GrammarNode to, Set<GrammarNode> attribute) {
             return false;
         }
+
+        @Override
+        protected GrammarTreeModel replaceNode(
+                GrammarTreeModel model,
+                GrammarNode node,
+                Set<GrammarNode> children,
+                GrammarNode oldNode,
+                GrammarNode newNode)
+        {
+            return super._set(model, node, replace(children, oldNode, newNode), Optional.of(children));
+        }
     };
 
     public static Stream<GrammarNode> allChildren(GrammarTreeModel model, GrammarNode node) {
@@ -113,6 +141,22 @@ public final class Keys {
             }
             else {
                 return super._set(model, node, next, maybeOldNext);
+            }
+        }
+
+        @Override
+        protected GrammarTreeModel replaceNode(
+                GrammarTreeModel model,
+                GrammarNode node,
+                GrammarNode next,
+                GrammarNode oldNode,
+                GrammarNode newNode)
+        {
+            if (oldNode.equals(next)) {
+                return super._set(model, node, newNode, Optional.of(next));
+            }
+            else {
+                return super.replaceNode(model, node, next, oldNode, newNode);
             }
         }
     };

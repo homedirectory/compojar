@@ -76,6 +76,19 @@ public final class Util {
         return unmodifiableMap(map);
     }
 
+    public static <K, V> Map<K, V> replaceKey(Map<K, V> map, K oldKey, K newKey) {
+        if (!map.containsKey(oldKey)) {
+            return map;
+        }
+        else {
+            var result = new HashMap<K,V>(map);
+            var value = result.get(oldKey);
+            result.remove(oldKey);
+            result.put(newKey, value);
+            return unmodifiableMap(result);
+        }
+    }
+
     @SafeVarargs
     public static <X> Set<X> concatSet(Collection<? extends X>... collections) {
         return Arrays.stream(collections).flatMap(Collection::stream).collect(Collectors.toSet());
@@ -304,6 +317,18 @@ public final class Util {
         else {
             var result = new HashSet<X>(xs);
             result.remove(x);
+            return unmodifiableSet(result);
+        }
+    }
+
+    public static <X> Set<X> replace(Set<X> xs, X oldX, X newX) {
+        if (!xs.contains(oldX)) {
+            return xs;
+        }
+        else {
+            var result = new HashSet<X>(xs);
+            result.remove(oldX);
+            result.add(newX);
             return unmodifiableSet(result);
         }
     }
