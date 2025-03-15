@@ -59,18 +59,28 @@ public final class BnfParser {
     private static Result parseRhs(BNF bnf, Rule rule, GrammarNode lhsNode, Result result) {
         return switch (rule) {
             // Full node
-            case Derivation derivation ->
-                    uncons(derivation.rhs())
+            case Derivation derivation -> {
+                if (derivation.rhs().isEmpty()) {
+                    yield result;
+                }
+                else {
+                    yield uncons(derivation.rhs())
                             .get()
                             .map((hd, tl) -> {
-                                var tlNodes = tl.stream().map(sym -> t2(new GrammarNode.Leaf(sym.name()), sym)).toList();
                                 return parseSymbol(bnf, hd, result)
                                         .map((result2, hdNode) -> {
-                                            var result3 = result2.addNodes(tlNodes)
-                                                                 .mapModel(model -> model.set(hdNode, PARENT, lhsNode));
-                                            return setNexts(cons(hdNode, tlNodes.stream().map(T2::fst).toList()), result3);
+                                            var result3 = result2.mapModel(model -> model.set(hdNode, PARENT, lhsNode));
+                                            return foldl((acc, sym) -> acc.map((accResult, accTlNodes) -> {
+                                                             return parseSymbol(bnf, sym, accResult)
+                                                                     .map((accResult_, symNode) -> t2(accResult_, cons(symNode, accTlNodes)));
+                                                         }),
+                                                         t2(result3, List.<GrammarNode>of()),
+                                                         tl)
+                                                    .map((result4, tlNodes) -> setNexts(cons(hdNode, tlNodes.reversed()), result4));
                                         });
                             });
+                }
+            }
             // Free node
             case Selection selection ->
                     foldl((result2, sym) -> parseSymbol(bnf, sym, result2)
@@ -95,7 +105,6 @@ public final class BnfParser {
             case Variable variable -> {
                 var rule = bnf.requireRuleFor(variable);
                 if (containsValue(result.nodeSymbolMap, variable)) {
-                    // This is left recursion.
                     // If the node-symbol map contains this variable, then its rule had already been parsed.
                     var node = new GrammarNode.Leaf(variable.name());
                     yield t2(result.addNode(node, variable), node);
