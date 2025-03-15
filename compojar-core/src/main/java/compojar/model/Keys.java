@@ -7,8 +7,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import static compojar.util.Util.remove;
-import static compojar.util.Util.replace;
+import static compojar.util.Util.*;
 import static java.lang.String.format;
 
 public final class Keys {
@@ -83,6 +82,14 @@ public final class Keys {
 
     public static boolean isAncestor(GrammarTreeModel model, GrammarNode ancestor, GrammarNode node) {
         return ancestors(model, node).anyMatch(ancestor::equals);
+    }
+
+    public static boolean isAncestorOfAny(
+            GrammarTreeModel model,
+            GrammarNode ancestor,
+            Iterable<? extends GrammarNode> nodes)
+    {
+        return stream(nodes).anyMatch(node -> isAncestor(model, ancestor, node));
     }
 
     public static final Key<Set<GrammarNode>> CHILDREN = new NamedKey<>("children") {

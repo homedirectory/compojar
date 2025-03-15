@@ -8,6 +8,8 @@ import static compojar.util.T2.t2;
 import static java.lang.Character.isUpperCase;
 import static java.lang.Character.toLowerCase;
 import static java.util.Collections.*;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toSet;
 
 public final class Util {
 
@@ -89,9 +91,20 @@ public final class Util {
         }
     }
 
+    public static <X> Set<X> insert(Set<X> xs, X x) {
+        if (xs.contains(x)) {
+            return xs;
+        }
+        else {
+            var result = new HashSet<X>(xs);
+            result.add(x);
+            return unmodifiableSet(result);
+        }
+    }
+
     @SafeVarargs
     public static <X> Set<X> concatSet(Collection<? extends X>... collections) {
-        return Arrays.stream(collections).flatMap(Collection::stream).collect(Collectors.toSet());
+        return Arrays.stream(collections).flatMap(Collection::stream).collect(toSet());
     }
 
     @SafeVarargs
@@ -388,6 +401,42 @@ public final class Util {
                 .anyMatch(variable::equals);
     }
 
+    /**
+     * All members of {@code as} that are not members of {@code bs}.
+     */
+    public static <X> Set<X> difference(Set<? extends X> as, Set<? extends X> bs) {
+        if (as == bs) {
+            return Set.of();
+        }
+        else if (as.isEmpty()) {
+            return Set.of();
+        }
+        else if (bs.isEmpty()) {
+            return (Set<X>) as;
+        }
+        else {
+            return as.stream()
+                    .filter(a -> !bs.contains(a))
+                    .collect(toSet());
+        }
+    }
+
+    public static <X> Set<X> intersection(Set<? extends X> as, Set<? extends X> bs) {
+        if (as == bs) {
+            return (Set<X>) as;
+        }
+        else if (as.isEmpty() || bs.isEmpty()) {
+            return Set.of();
+        }
+        else {
+            return zipWith(as, bs,
+                           (a, b) -> Stream.concat(bs.contains(a) ? Stream.of(a) : Stream.empty(),
+                                                   as.contains(b) ? Stream.of(b) : Stream.empty()))
+                    .flatMap(identity())
+                    .collect(toSet());
+        }
+    }
+
     @FunctionalInterface
     public interface EnumeratedF<X, Y> {
 
@@ -576,11 +625,12 @@ public final class Util {
         }
     }
 
-    public static <X, Z> Z foldl(BiFunction<? super Z, ? super X, ? extends Z> fn,
-                                 Z init,
-                                 Collection<X> xs)
+    public static <X, Z> Z foldl(
+            BiFunction<? super Z, ? super X, ? extends Z> fn,
+            Z init,
+            Iterable<X> xs)
     {
-        return foldl(fn, init, xs.stream());
+        return foldl(fn, init, stream(xs));
     }
 
     public static <Z, X> Z foldl(BiFunction<? super Z, ? super X, ? extends Z> fn, Z init, Stream<X> xs) {
@@ -608,6 +658,12 @@ public final class Util {
 
     public static <K,V,Z> Stream<Z> stream(Map<K, V> map, BiFunction<? super K, ? super V, Z> fn) {
         return map.entrySet().stream().map(entry -> fn.apply(entry.getKey(), entry.getValue()));
+    }
+
+    public static <X> Stream<X> stream(Iterable<X> xs) {
+        return xs instanceof Collection<X> collection
+                ? collection.stream()
+                : StreamSupport.stream(Spliterators.spliteratorUnknownSize(xs.iterator(), 0), false);
     }
 
     // ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

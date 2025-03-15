@@ -13,9 +13,13 @@ import java.util.stream.Stream;
 
 import static compojar.model.Eq.eqMapAt;
 import static compojar.model.Eq.eqOn;
+import static compojar.model.Keys.*;
 import static compojar.util.T3.t3;
 import static compojar.util.Util.*;
 import static java.lang.String.format;
+import static java.util.Collections.unmodifiableSet;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 public record GrammarTreeModel (
         Set<GrammarNode> nodes,
@@ -222,10 +226,20 @@ public record GrammarTreeModel (
         }
     }
 
+    public void assertContainsAll(Iterable<? extends GrammarNode> nodes) {
+        for (GrammarNode node : nodes) {
+            assertContains(node);
+        }
+    }
+
     public GrammarTreeModel addNodes(Collection<? extends GrammarNode> nodes) {
         return new GrammarTreeModel(concatSet(this.nodes, nodes),
                                     root,
                                     attributes);
+    }
+
+    public GrammarTreeModel addNodes(GrammarNode... nodes) {
+        return addNodes(Arrays.asList(nodes));
     }
 
     public GrammarTreeModel addNode(GrammarNode node) {
@@ -260,6 +274,79 @@ public record GrammarTreeModel (
                 replace(newModel.nodes, oldNode, newNode),
                 newModel.root.equals(oldNode) ? newNode : newModel.root,
                 replaceKey(newModel.attributes, oldNode, newNode));
+    }
+
+    public GrammarTreeModel subtree(GrammarNode subRoot) {
+        assertContains(subRoot);
+
+        if (root.equals(subRoot)) {
+            return this;
+        } else {
+            var subNodes = nodesBelow(subRoot).collect(toSet());
+            var newNodes = insert(subNodes, subRoot);
+            return new GrammarTreeModel(newNodes,
+                                        subRoot,
+                                        filterKeys(attributes, (k, $) -> newNodes.contains(k)))
+                    .removeAttribute(PARENT, subRoot)
+                    .removeAttribute(NEXT, subRoot);
+        }
+    }
+
+    private Stream<GrammarNode> nodesBelow(GrammarNode node) {
+        return allChildren(this, node)
+                .flatMap(c -> Stream.concat(Stream.of(c), Keys.allNexts(this, c)));
+    }
+
+    public GrammarTreeModel include(GrammarTreeModel model) {
+        if (!intersection(nodes, model.nodes()).isEmpty()) {
+            throw new IllegalArgumentException("Cannot include a model that shares nodes with this one.");
+        }
+
+        return new GrammarTreeModel(concatSet(nodes, model.nodes()),
+                                    root,
+                                    mapStrictMerge(attributes, model.attributes()));
+    }
+
+    public GrammarTreeModel setRoot(GrammarNode newRoot) {
+        return replaceNode(this.root, newRoot);
+    }
+
+    public GrammarTreeModel pruneSubtree(GrammarNode node) {
+        var result = get(node, NEXT).map(this::pruneSubtree).orElse(this);
+
+        result = foldl(GrammarTreeModel::pruneSubtree,
+                       result,
+                       get(node, CHILDREN).orElseGet(Set::of));
+
+        return result.removeNode(node);
+    }
+
+    public GrammarTreeModel retainNodes(Set<? extends GrammarNode> nodes) {
+        assertContainsAll(nodes);
+
+        return removeNodes(difference(this.nodes, nodes));
+    }
+
+    public GrammarTreeModel copy() {
+        var newNodes = nodes.stream().collect(toMap(Function.identity(), GrammarNode::copy));
+
+        var model = foldl((acc, oldNode, newNode) -> acc.replaceNode(oldNode, newNode),
+                          this,
+                          newNodes);
+
+        return new GrammarTreeModel(unmodifiableSet(new HashSet<>(newNodes.values())),
+                                    newNodes.get(root),
+                                    foldl((acc, oldNode, newNode) -> replaceKey(acc, oldNode, newNode),
+                                          model.attributes(),
+                                          newNodes));
+    }
+
+    /**
+     * Removes the sub-tree rooted at the specified node.
+     * The node itself is not removed.
+     */
+    public GrammarTreeModel removeSubtreeBelow(GrammarNode node) {
+        return removeNodes(remove(subtree(node).nodes(), node));
     }
 
     // public <V> GrammarTreeModel removeAttributesOnValue(Key<V> key, V attribute) {
