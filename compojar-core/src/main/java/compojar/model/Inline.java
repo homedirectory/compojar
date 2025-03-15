@@ -4,6 +4,7 @@ import java.util.Set;
 
 import static compojar.model.Keys.*;
 import static compojar.util.T3.t3;
+import static compojar.util.Util.cons;
 import static compojar.util.Util.foldl;
 
 /**
@@ -66,20 +67,22 @@ public final class Inline {
                          return accModel
                                  .addNode(p)
                                  .set(p, PARENT, parent)
-                                 .maybeMap(model.get(parent, NEXT).map(GrammarNode::copy),
-                                           (pNext, m) -> m.addNode(pNext)
-                                                          .set(p, NEXT, pNext))
+                                 .pipe(m -> {
+                                     var pNexts = allNexts(m, parent).map(GrammarNode::copy).toList();
+                                     return linkNext(m.addNodes(pNexts), cons(p, pNexts));
+                                 })
                                  .set(child, PARENT, p)
-                                 .maybeMap(model.get(node, NEXT).map(GrammarNode::copy),
-                                           (next, m) -> m.addNode(next)
-                                                         .set(child, NEXT, next));
+                                 .pipe(m -> {
+                                     var newNexts = allNexts(m, node).map(GrammarNode::copy).toList();
+                                     return linkNext(m.addNodes(newNexts), cons(child, newNexts));
+                                 });
                      },
                      model,
                      model.get(node, CHILDREN).orElseGet(Set::of))
                 .removeAttribute(NEXT, parent)
                 .replaceNode(parent, new GrammarNode.Free(parent.name()))
-                .removeNode(model.get(node, NEXT))
-                .removeNode(model.get(parent, NEXT))
+                .removeNodes(allNexts(model, node))
+                .removeNodes(allNexts(model, parent))
                 .removeNode(node);
     }
 

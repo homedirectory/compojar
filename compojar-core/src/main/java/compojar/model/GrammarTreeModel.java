@@ -349,6 +349,10 @@ public record GrammarTreeModel (
         return removeNodes(remove(subtree(node).nodes(), node));
     }
 
+    public GrammarTreeModel pipe(Function<? super GrammarTreeModel, GrammarTreeModel> fn) {
+        return fn.apply(this);
+    }
+
     // public <V> GrammarTreeModel removeAttributesOnValue(Key<V> key, V attribute) {
     //     return new GrammarTreeModel(nodes,
     //                                 root,

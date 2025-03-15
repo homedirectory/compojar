@@ -57,13 +57,13 @@ public class InlineTest {
     public void inline_node_whose_parent_is_regular_node() {
         var inGrammar = new AbstractGrammar() {
             Variable E, Var, E1, E2, Add, Neg;
-            Terminal sqrt, plus, x, minus;
+            Terminal one, two, plus, x, minus;
 
             BNF bnf() {
                 return start(E)
                         .select(E, Var, E1)
                         .derive(Var, x)
-                        .derive(E1, E2, sqrt)
+                        .derive(E1, E2, one, two)
                         .select(E2, Add, Neg)
                         .derive(Add, plus)
                         .derive(Neg, minus)
@@ -73,15 +73,15 @@ public class InlineTest {
 
         var expectedGrammar = new AbstractGrammar() {
             Variable E, Var, E1, E1$1, E1$2, Add, Neg;
-            Terminal sqrt, plus, x, minus;
+            Terminal one, two, plus, x, minus;
 
             BNF bnf() {
                 return start(E)
                         .select(E, Var, E1)
                         .derive(Var, x)
                         .select(E1, E1$1, E1$2)
-                        .derive(E1$1, Add, sqrt)
-                        .derive(E1$2, Neg, sqrt)
+                        .derive(E1$1, Add, one, two)
+                        .derive(E1$2, Neg, one, two)
                         .derive(Add, plus)
                         .derive(Neg, minus)
                         .$();

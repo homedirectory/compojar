@@ -3,6 +3,7 @@ package compojar.model;
 import compojar.model.GrammarNode.Leaf;
 import compojar.util.Util;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -172,6 +173,12 @@ public final class Keys {
         return model._getAttribute(node, NEXT)
                     .map(next -> Stream.concat(Stream.of(next), allNexts(model, next)))
                     .orElseGet(Stream::of);
+    }
+
+    public static GrammarTreeModel linkNext(GrammarTreeModel model, List<? extends GrammarNode> nodes) {
+        return foldl((acc, pair) -> pair.map((a, b) -> acc.set(a, NEXT, b)),
+                     model,
+                     zip(nodes, dropLeft(nodes, 1)));
     }
 
 
