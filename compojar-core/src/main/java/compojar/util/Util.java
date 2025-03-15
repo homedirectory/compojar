@@ -381,6 +381,13 @@ public final class Util {
                         });
     }
 
+    public static <K,V> boolean containsValue(Map<K, ? super V> map, V variable) {
+        return map.entrySet()
+                .stream()
+                .map(Map.Entry::getValue)
+                .anyMatch(variable::equals);
+    }
+
     @FunctionalInterface
     public interface EnumeratedF<X, Y> {
 
