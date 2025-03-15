@@ -30,7 +30,7 @@ public sealed interface GrammarNode {
     }
 
     /**
-     * A leaf node corresponds to a terminal symbol.
+     * A leaf node has no children.
      */
     record Leaf (CharSequence name)
         implements GrammarNode
