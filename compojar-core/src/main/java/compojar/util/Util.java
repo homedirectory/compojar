@@ -20,6 +20,10 @@ public final class Util {
         return unmodifiableList(list);
     }
 
+    public static <X> Stream<X> cons(X x, Stream<? extends X> xs) {
+        return Stream.concat(Stream.of(x), xs);
+    }
+
     public static <X> Optional<T2<X, List<X>>> uncons(Iterable<X> xs) {
         if (xs instanceof List<X> list) {
             if (list.isEmpty()) {

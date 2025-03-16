@@ -353,6 +353,10 @@ public record GrammarTreeModel (
         return fn.apply(this);
     }
 
+    public boolean contains(GrammarNode node) {
+        return nodes.contains(node);
+    }
+
     // public <V> GrammarTreeModel removeAttributesOnValue(Key<V> key, V attribute) {
     //     return new GrammarTreeModel(nodes,
     //                                 root,

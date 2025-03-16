@@ -7,8 +7,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static compojar.model.Keys.*;
-import static compojar.util.Util.concatSet;
-import static compojar.util.Util.foldl;
+import static compojar.util.Util.*;
 import static java.util.stream.Collectors.toSet;
 
 public class LeftRecursion {
@@ -30,7 +29,7 @@ public class LeftRecursion {
             Eq<GrammarNode> eqNode)
     {
         // 1
-        var inlinedModel = Inline.inline(model, A, nodeFactory);
+        var newModel = Inline.inline(model, A, nodeFactory);
 
         // 2
         var L = findLrecLeaves(model, A, eqNode);
@@ -38,43 +37,50 @@ public class LeftRecursion {
             throw new IllegalStateException("L must not be empty.");
 
         // 3
-        var model_AL = foldl(LeftRecursion::removeLeaf, inlinedModel.subtree(A), L);
+        newModel = removeAllUseless(newModel, A, L);
+        var Lu = L.stream().filter(newModel::contains).collect(toSet());
 
         // 4
-        final GrammarTreeModel model_AR;
-        {
-            var model_A = inlinedModel.subtree(A);
-            var ancestors = model_A.nodes().stream().filter(node -> isAncestorOfAny(model_A, node, L)).toList();
-            var nexts = concatSet(ancestors, L).stream().flatMap(anc -> allNexts(model_A, anc)).toList();
-            model_AR = disconnect(model_A.retainNodes(concatSet(ancestors, nexts, L)),
-                                  L)
-                    .copy();
-        }
+        var model_AL = foldl(LeftRecursion::removeLeaf, newModel.subtree(A), Lu);
 
         // 5
+        final Optional<GrammarTreeModel> maybeModel_AR;
+        if (Lu.isEmpty()) {
+            maybeModel_AR = Optional.empty();
+        }
+        else {
+            var model_A = newModel.subtree(A);
+            var ancestors = model_A.nodes().stream().filter(node -> isAncestorOfAny(model_A, node, Lu)).toList();
+            var nexts = concatSet(ancestors, Lu).stream().flatMap(anc -> allNexts(model_A, anc)).toList();
+            maybeModel_AR = Optional.of(disconnect(model_A.retainNodes(concatSet(ancestors, nexts, Lu)),
+                                                   Lu)
+                                                .copy());
+        }
+
+        // 6
         var A_L = nodeFactory.newFreeNode(NameHints.A_L);
         model_AL = model_AL.setRoot(A_L);
 
-        // 6
-        GrammarNode A_R = nodeFactory.newFreeNode(NameHints.A_R),
-                A_R_copy = A_R.copy(),
-                Eps = nodeFactory.newNode(NameHints.Eps),
-                A_R_ = nodeFactory.newNode(NameHints.A_R_),
-                A_R__ = nodeFactory.newFreeNode(NameHints.A_R__);
-
-        return inlinedModel
+        return newModel
                 .removeSubtreeBelow(A)
-                // 5
+                // 6
                 .include(model_AL)
                 .set(A_L, PARENT, A)
-                // 6
-                .include(model_AR.setRoot(A_R__))
-                .addNodes(A_R, A_R_copy, Eps, A_R_)
-                .set(Eps, PARENT, A_R)
-                .set(A_R_, PARENT, A_R)
-                .set(A_R__, PARENT, A_R_)
-                .set(A_R__, NEXT, A_R_copy)
-                .set(A_L, NEXT, A_R)
+                // 7
+                .pipe(m -> maybeModel_AR.map(model_AR -> {
+                    GrammarNode A_R = nodeFactory.newFreeNode(NameHints.A_R),
+                            A_R_copy = A_R.copy(),
+                            Eps = nodeFactory.newNode(NameHints.Eps),
+                            A_R_ = nodeFactory.newNode(NameHints.A_R_),
+                            A_R__ = nodeFactory.newFreeNode(NameHints.A_R__);
+                    return m.include(model_AR.setRoot(A_R__))
+                            .addNodes(A_R, A_R_copy, Eps, A_R_)
+                            .set(Eps, PARENT, A_R)
+                            .set(A_R_, PARENT, A_R)
+                            .set(A_R__, PARENT, A_R_)
+                            .set(A_R__, NEXT, A_R_copy)
+                            .set(A_L, NEXT, A_R);
+                }).orElse(m))
                 // 7
                 .replaceNode(A, new GrammarNode.Full(A.name()));
     }
@@ -117,11 +123,11 @@ public class LeftRecursion {
     }
 
     static GrammarTreeModel removeLeaf(GrammarTreeModel model, GrammarNode leaf) {
-        var ancestor = ancestors(model, leaf)
+        var subRoot = Stream.concat(Stream.of(leaf), ancestors(model, leaf))
                 .filter(anc -> model.getF(anc, PARENT) instanceof GrammarNode.Free)
                 .findFirst()
                 .orElseThrow();
-        return model.pruneSubtree(ancestor);
+        return model.pruneSubtree(subRoot);
     }
 
     static GrammarTreeModel disconnect(GrammarTreeModel model, Iterable<? extends GrammarNode> nodes) {
@@ -131,6 +137,24 @@ public class LeftRecursion {
                                        .removeNode(node),
                      model,
                      nodes);
+    }
+
+    static boolean isUseless(GrammarTreeModel model, GrammarNode root, GrammarNode leaf) {
+        return cons(leaf, ancestors(model, leaf))
+                .takeWhile(anc -> anc != root)
+                .noneMatch(anc -> model.has(anc, NEXT));
+    }
+
+    static GrammarTreeModel removeAllUseless(GrammarTreeModel model, GrammarNode root, Set<GrammarNode> leaves) {
+        var garbage = leaves.stream()
+                            .filter(l -> isUseless(model, root, l))
+                            // Also remove useless ancestors of useless leaves.
+                            .flatMap(l -> Stream.concat(Stream.of(l),
+                                                        ancestors(model, l)
+                                                                .takeWhile(anc -> anc != root)
+                                                                .takeWhile(anc -> model.getF(anc, CHILDREN).size() < 2)))
+                            .collect(toSet());
+        return model.removeNodes(garbage);
     }
 
 }
