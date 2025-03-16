@@ -520,7 +520,7 @@ public final class Util {
     }
 
     public static <X> boolean allElementsEqual(Iterable<X> xs) {
-        return allElementsEqual(xs, Function.identity());
+        return allElementsEqual(xs, identity());
     }
 
     public static <X> List<X> dropRight(List<X> xs, int n) {
@@ -657,7 +657,7 @@ public final class Util {
 
     private static <X> Stream<T2<X, X>> generatePairs(List<X> xs) {
         return zipWith(xs.stream(), dropLeft(tails(xs), 1), (hd, tl) -> tl.stream().map(tlElt -> t2(hd, tlElt)))
-                .flatMap(Function.identity());
+                .flatMap(identity());
     }
 
     public static <K,V,Z> Stream<Z> stream(Map<K, V> map, BiFunction<? super K, ? super V, Z> fn) {

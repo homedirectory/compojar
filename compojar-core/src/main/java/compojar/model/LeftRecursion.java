@@ -85,15 +85,6 @@ public class LeftRecursion {
                 .replaceNode(A, new GrammarNode.Full(A.name()));
     }
 
-    /**
-     * Map {@code target} by replacing all nodes that occur in {@code model} with copies.
-     */
-    private static GrammarTreeModel replaceWithCopies(GrammarTreeModel target, GrammarTreeModel model) {
-        return foldl((acc, node) -> target.replaceNode(node, node.copy()),
-                     target,
-                     model.nodes().stream().filter(node -> target.nodes().contains(node)));
-    }
-
     static Optional<GrammarNode> findLrecNode(GrammarTreeModel model, Eq<GrammarNode> eqNode) {
         return bfs(model)
                 .filter(node -> leaves(model.subtree(node)).anyMatch(leaf -> eqNode.areEqual(node, leaf)))
