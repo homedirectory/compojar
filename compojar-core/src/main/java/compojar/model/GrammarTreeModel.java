@@ -311,12 +311,20 @@ public record GrammarTreeModel (
         return replaceNode(this.root, newRoot);
     }
 
-    public GrammarTreeModel pruneSubtree(GrammarNode node) {
-        var result = get(node, NEXT).map(this::pruneSubtree).orElse(this);
+    public GrammarTreeModel pruneSubtreeWithNext(GrammarNode node) {
+        var result = get(node, NEXT).map(this::pruneSubtreeWithNext).orElse(this);
 
-        result = foldl(GrammarTreeModel::pruneSubtree,
+        result = foldl(GrammarTreeModel::pruneSubtreeWithNext,
                        result,
                        get(node, CHILDREN).orElseGet(Set::of));
+
+        return result.removeNode(node);
+    }
+
+    public GrammarTreeModel pruneSubtree(GrammarNode node) {
+        var result = foldl(GrammarTreeModel::pruneSubtree,
+                           this,
+                           get(node, CHILDREN).orElseGet(Set::of));
 
         return result.removeNode(node);
     }

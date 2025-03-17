@@ -118,7 +118,7 @@ public class LeftRecursion {
                 .filter(anc -> model.getF(anc, PARENT) instanceof GrammarNode.Free)
                 .findFirst()
                 .orElseThrow();
-        return model.pruneSubtree(subRoot);
+        return model.pruneSubtreeWithNext(subRoot);
     }
 
     static GrammarTreeModel disconnect(GrammarTreeModel model, Iterable<? extends GrammarNode> nodes) {

@@ -32,27 +32,21 @@ public final class Inline {
 
         final var newModel = inlineChildren(node, model, nodeFactory);
 
-        if (node.equals(newModel.root()))
-            return newModel;
-
-        return switch (node) {
-            case GrammarNode.Leaf $ -> newModel;
-            case GrammarNode.Full $ -> newModel;
-            case GrammarNode.Free freeNode
-                    when PARENT.get(newModel, freeNode).filter(GrammarNode.Free.class::isInstance).isPresent()
-                    ->
-            {
-                var parent = newModel.requireAttribute(freeNode, PARENT);
-                var children = newModel.get(freeNode, CHILDREN).orElseGet(Set::of);
-                yield newModel
-                        .removeNode(freeNode)
-                        .setAll(children.stream().map(c -> t3(c, PARENT, parent)));
-            }
-            case GrammarNode.Free freeNode
-                    when PARENT.get(newModel, freeNode).filter(GrammarNode.Full.class::isInstance).isPresent()
-                    -> inlineFreeNodeWithFullParent(freeNode, newModel, nodeFactory);
-            default -> throw new IllegalStateException();
-        };
+        return model.get(node, PARENT)
+                    .map(parent -> switch (node) {
+                        case GrammarNode.Leaf $ -> newModel;
+                        case GrammarNode.Full $ -> newModel;
+                        case GrammarNode.Free freeNode when parent instanceof GrammarNode.Free -> {
+                            var children = newModel.get(freeNode, CHILDREN).orElseGet(Set::of);
+                            yield newModel
+                                    .removeNode(freeNode)
+                                    .setAll(children.stream().map(c -> t3(c, PARENT, parent)));
+                        }
+                        case GrammarNode.Free freeNode when parent instanceof GrammarNode.Full ->
+                                inlineFreeNodeWithFullParent(freeNode, newModel, nodeFactory);
+                        default -> throw new IllegalStateException();
+                    })
+                    .orElse(newModel);
     }
 
     private static GrammarTreeModel inlineFreeNodeWithFullParent(
