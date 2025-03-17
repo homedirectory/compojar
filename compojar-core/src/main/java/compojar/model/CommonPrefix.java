@@ -29,7 +29,13 @@ public final class CommonPrefix {
             Function<? super GrammarNode, ?> nodeClassifier,
             NodeFactory nodeFactory)
     {
-        var commonPrefix = findCommonPrefix(model, model.root(), nodeClassifier);
+        var commonPrefix = model.nodes()
+                                .stream()
+                                .map(node -> findCommonPrefix(model, node, nodeClassifier))
+                                .filter(cp -> !cp.isEmpty())
+                                .findFirst()
+                                .orElseGet(Set::of);
+                // findCommonPrefix(model, model.root(), nodeClassifier);
         if (commonPrefix.isEmpty()) {
             return model;
         }
@@ -91,23 +97,19 @@ public final class CommonPrefix {
             newModel = newModelRef.get();
         }
 
-        // For each common prefix node N:
-        // * disconnect N from its parent P;
-        // * make parent(next(N)) = P.
+        // Disconnect common prefix nodes.
         newModel = foldl((accModel, node) -> {
                              var nodeParent = accModel.getF(node, PARENT);
                              var maybeNodeNext = accModel.get(node, NEXT);
-                             return accModel
-                                     .removeAttribute(PARENT, node)
-                                     .set(maybeNodeNext, PARENT, nodeParent)
-                                     .removeAttribute(NEXT, node);
+                             return accModel.set(maybeNodeNext, PARENT, nodeParent)
+                                            .pruneSubtree(node);
                          },
                          newModel,
                          commonPrefix);
 
         // We only need one common prefix node, since we are eliminating the common prefix.
         var commonPrefixNode = first(commonPrefix);
-        newModel = newModel.removeNodes(remove(commonPrefix, commonPrefixNode));
+        newModel = newModel.addNode(commonPrefixNode);
 
         // Add a new child to the common ancestor, a full node whose child is the common prefix node.
         var $1 = nodeFactory.newNode();
