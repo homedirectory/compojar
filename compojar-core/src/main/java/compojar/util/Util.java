@@ -650,6 +650,17 @@ public final class Util {
                      xs.entrySet());
     }
 
+    public static <Z, U, X> T2<Z, U> foldl2(
+            Function3<? super Z, ? super U, ? super X, T2<? extends Z, ? extends U>> fn,
+            Z init1,
+            U init2,
+            Stream<X> xs)
+    {
+        return xs.reduce(t2(init1, init2),
+                         (pair, x) -> (T2) pair.map((acc1, acc2) -> fn.apply(acc1, acc2, x)),
+                         ($1, $2) -> { throw new UnsupportedOperationException("no combiner"); });
+    }
+
     public static <X> Stream<T2<X, X>> permuteInPairs(List<X> xs) {
         return generatePairs(xs)
                 .flatMap(pair -> Stream.of(pair, pair.swap()));

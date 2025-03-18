@@ -1,18 +1,19 @@
 package compojar.model;
 
+import java.util.List;
 import java.util.Set;
 
 import static compojar.model.Keys.*;
 import static compojar.util.T3.t3;
-import static compojar.util.Util.cons;
-import static compojar.util.Util.foldl;
+import static compojar.util.Util.*;
 
 /**
  * Inlining of grammar trees.
  * <p>
- * Laws:
+ * The following nodes cannot be inlined:
  * <ul>
- *   <li> In an inlined tree only the root node may be free.
+ *   <li> Tree root.
+ *   <li> Recursive node (any recursion, not just left).
  * </ul>
  */
 public final class Inline {
@@ -36,6 +37,7 @@ public final class Inline {
                     .map(parent -> switch (node) {
                         case GrammarNode.Leaf $ -> newModel;
                         case GrammarNode.Full $ -> newModel;
+                        case GrammarNode.Free freeNode when hasLinks(model, freeNode) -> newModel;
                         case GrammarNode.Free freeNode when parent instanceof GrammarNode.Free -> {
                             var children = newModel.get(freeNode, CHILDREN).orElseGet(Set::of);
                             yield newModel
@@ -61,15 +63,15 @@ public final class Inline {
                          return accModel
                                  .addNode(p)
                                  .set(p, PARENT, parent)
-                                 .pipe(m -> {
-                                     var pNexts = allNexts(m, parent).map(GrammarNode::copy).toList();
-                                     return linkNext(m.addNodes(pNexts), cons(p, pNexts));
-                                 })
+                                 .pipe(m -> foldl2((accM, accNexts, next) -> accM.addCopyOf(next, TARGET).map2(pNext -> cons(pNext, accNexts)),
+                                                   m, List.<GrammarNode>of(),
+                                                   allNexts(m, parent))
+                                         .map((m_, pNexts) -> linkNext(m_, cons(p, pNexts.reversed()))))
                                  .set(child, PARENT, p)
-                                 .pipe(m -> {
-                                     var newNexts = allNexts(m, node).map(GrammarNode::copy).toList();
-                                     return linkNext(m.addNodes(newNexts), cons(child, newNexts));
-                                 });
+                                 .pipe(m -> foldl2((accM, accNexts, next) -> accM.addCopyOf(next, TARGET).map2(newNext -> cons(newNext, accNexts)),
+                                                   m, List.<GrammarNode>of(),
+                                                   allNexts(m, node))
+                                         .map((m_, newNexts) -> linkNext(m_, cons(child, newNexts.reversed()))));
                      },
                      model,
                      model.get(node, CHILDREN).orElseGet(Set::of))

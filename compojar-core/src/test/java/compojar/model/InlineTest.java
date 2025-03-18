@@ -174,4 +174,27 @@ public class InlineTest {
         assertTrue(structEquals(expectedModel, inlinedModel, eqOn(GrammarNode::name)));
     }
 
+    @Test
+    public void recursive_nodes_are_not_inlined() {
+        var g = new AbstractGrammar() {
+            Variable S, E, N, Add;
+            Terminal one, plus;
+
+            BNF bnf() {
+                return start(S)
+                        .select(S, E)
+                        .select(E, N, Add)
+                        .derive(N, one)
+                        .derive(Add, E, plus, E)
+                        .$();
+            }
+        };
+
+        var inModel = BnfParser.parseBnf(g.bnf()).model();
+
+        var inlinedModel = Inline.inline(inModel, new TestNodeFactory());
+
+        assertTrue(structEquals(inModel, inlinedModel, eqOn(GrammarNode::name)));
+    }
+
 }

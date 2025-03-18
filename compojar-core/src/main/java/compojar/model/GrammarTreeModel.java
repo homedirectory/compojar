@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 import static compojar.model.Eq.eqMapAt;
 import static compojar.model.Eq.eqOn;
 import static compojar.model.Keys.*;
+import static compojar.util.T2.t2;
 import static compojar.util.T3.t3;
 import static compojar.util.Util.*;
 import static java.lang.String.format;
@@ -186,6 +187,33 @@ public record GrammarTreeModel (
         var attributesToCopy = filterKeys(attributes.getOrDefault(from, Map.of()),
                                           (key, attr) -> key.canCopy(this, from, to, attr));
         return addAttributes(Map.of(to, attributesToCopy));
+    }
+
+    public GrammarTreeModel copyAttributes(GrammarNode from, GrammarNode to, Key... keys) {
+        return copyAttributes(from, to, Set.of(keys));
+    }
+
+    public GrammarTreeModel copyAttributes(GrammarNode from, GrammarNode to, Collection<? extends Key> keys) {
+        assertContainsAll(from, to);
+
+        keys.forEach(key -> get(from, key).ifPresent(attr -> {
+            if (!key.canCopy(this, from, to, attr)) {
+                throw new IllegalStateException(format("Attribute for key [%s] cannot be copied from [%s] to [%s].",
+                                                       key, from, to));
+            }
+        }));
+
+        var keySet = Set.copyOf(keys);
+        var attributesToCopy = filterKeys(attributes.getOrDefault(from, Map.of()),
+                                          (key, attr) -> keySet.contains(key) && key.canCopy(this, from, to, attr));
+        return addAttributes(Map.of(to, attributesToCopy));
+    }
+
+    public T2<GrammarTreeModel, GrammarNode> addCopyOf(GrammarNode node, Key... keys) {
+        assertContains(node);
+
+        var copy = node.copy();
+        return t2(addNode(copy).copyAttributes(node, copy, keys), copy);
     }
 
     <V> Optional<V> _getAttribute(GrammarNode node, Key<V> key) {
