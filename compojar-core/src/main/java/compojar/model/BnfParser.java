@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-import static compojar.model.Keys.NEXT;
-import static compojar.model.Keys.PARENT;
+import static compojar.model.Keys.*;
 import static compojar.util.T2.t2;
 import static compojar.util.Util.*;
 
@@ -21,7 +21,7 @@ import static compojar.util.Util.*;
 public final class BnfParser {
 
     public record Result (GrammarTreeModel model,
-                   Map<GrammarNode, Symbol> nodeSymbolMap)
+                          Map<GrammarNode, Symbol> nodeSymbolMap)
     {
         public GrammarNode nodeFor(Symbol symbol) {
             return findNode(symbol::equals);
@@ -29,6 +29,13 @@ public final class BnfParser {
 
         public GrammarNode findNode(Predicate<? super Symbol> predicate) {
             return stream(nodeSymbolMap, (node, sym) -> predicate.test(sym) ? Optional.of(node) : Optional.<GrammarNode>empty())
+                    .flatMap(Optional::stream)
+                    .findFirst()
+                    .orElseThrow();
+        }
+
+        public GrammarNode findNodeWithSymbol(BiPredicate<? super Symbol, ? super GrammarNode> predicate) {
+            return stream(nodeSymbolMap, (node, sym) -> predicate.test(sym, node) ? Optional.of(node) : Optional.<GrammarNode>empty())
                     .flatMap(Optional::stream)
                     .findFirst()
                     .orElseThrow();
@@ -53,10 +60,10 @@ public final class BnfParser {
         var startRule = bnf.requireRuleFor(bnf.start());
         var root = makeNode(startRule);
         var initModel = new GrammarTreeModel(Set.of(root), root);
-        return parseRhs(bnf, startRule, root, new Result(initModel, Map.of(root, bnf.start())));
+        return parseRhs(bnf, startRule, root, new Result(initModel, Map.of(root, bnf.start())), Map.of(bnf.start(), root));
     }
 
-    private static Result parseRhs(BNF bnf, Rule rule, GrammarNode lhsNode, Result result) {
+    private static Result parseRhs(BNF bnf, Rule rule, GrammarNode lhsNode, Result result, Map<Symbol, GrammarNode> stack) {
         return switch (rule) {
             // Full node
             case Derivation derivation -> {
@@ -67,11 +74,11 @@ public final class BnfParser {
                     yield uncons(derivation.rhs())
                             .get()
                             .map((hd, tl) -> {
-                                return parseSymbol(bnf, hd, result)
+                                return parseSymbol(bnf, hd, result, stack)
                                         .map((result2, hdNode) -> {
                                             var result3 = result2.mapModel(model -> model.set(hdNode, PARENT, lhsNode));
                                             return foldl((acc, sym) -> acc.map((accResult, accTlNodes) -> {
-                                                             return parseSymbol(bnf, sym, accResult)
+                                                             return parseSymbol(bnf, sym, accResult, stack)
                                                                      .map((accResult_, symNode) -> t2(accResult_, cons(symNode, accTlNodes)));
                                                          }),
                                                          t2(result3, List.<GrammarNode>of()),
@@ -83,7 +90,7 @@ public final class BnfParser {
             }
             // Free node
             case Selection selection ->
-                    foldl((result2, sym) -> parseSymbol(bnf, sym, result2)
+                    foldl((result2, sym) -> parseSymbol(bnf, sym, result2, stack)
                                   .map((result3, symNode) -> result3.mapModel(model -> model.set(symNode, PARENT, lhsNode))),
                           result,
                           selection.rhs());
@@ -96,23 +103,28 @@ public final class BnfParser {
                      zipWith(nodes, dropLeft(nodes, 1), T2::t2));
     }
 
-    private static T2<Result, GrammarNode> parseSymbol(BNF bnf, Symbol symbol, Result result) {
+    private static T2<Result, GrammarNode> parseSymbol(BNF bnf, Symbol symbol, Result result, Map<Symbol, GrammarNode> stack) {
         return switch (symbol) {
             case Terminal terminal -> {
                 var node = new GrammarNode.Leaf(terminal.name());
-                yield t2(result.addNode(node, terminal), node);
+                yield t2(result.addNode(node, terminal),
+                         node);
             }
             case Variable variable -> {
-                var rule = bnf.requireRuleFor(variable);
-                if (containsValue(result.nodeSymbolMap, variable)) {
-                    // If the node-symbol map contains this variable, then its rule had already been parsed.
-                    var node = new GrammarNode.Leaf(variable.name());
-                    yield t2(result.addNode(node, variable), node);
-                }
-                else {
-                    var node = makeNode(rule);
-                    yield t2(parseRhs(bnf, rule, node, result.addNode(node, variable)), node);
-                }
+                yield stream(stack, (stackSym, stackNode) -> Optional.of(stackNode).filter($ -> stackSym.normalEquals(variable)))
+                        .flatMap(Optional::stream)
+                        .findFirst()
+                        .map(targetNode -> {
+                            GrammarNode node = new GrammarNode.Leaf(variable.name());
+                            return t2(result.addNode(node, variable).mapModel(m -> m.set(node, TARGET, targetNode)),
+                                      node);
+                        })
+                        .orElseGet(() -> {
+                            var rule = bnf.requireRuleFor(variable);
+                            var node = makeNode(rule);
+                            return t2(parseRhs(bnf, rule, node, result.addNode(node, variable), insert(stack, variable, node)),
+                                      node);
+                        });
             }
         };
     }

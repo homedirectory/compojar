@@ -181,6 +181,77 @@ public final class Keys {
                      zip(nodes, dropLeft(nodes, 1)));
     }
 
+    /**
+     * Represents a link from a node to a target node.
+     * This relationship is used to represent recursive grammar rules (any recursion, not just left).
+     * It ensures that grammar trees have finite size.
+     * <p>
+     * The linking node is always a leaf.
+     */
+    public static final Key<GrammarNode> TARGET = new NamedKey<>("target") {
+        @Override
+        protected GrammarTreeModel _set(
+                GrammarTreeModel model,
+                GrammarNode node,
+                GrammarNode target,
+                Optional<GrammarNode> maybeOldValue)
+        {
+            model.assertContains(node);
+            model.assertContains(target);
+
+            if (node.equals(target)) {
+                throw new IllegalArgumentException(format("Node cannot be its own target.\nNode: [%s]", node));
+            }
+
+            if (!(node instanceof Leaf)) {
+                throw new IllegalArgumentException(format("Linking node [%s] must be a leaf but was [%s].",
+                                                          node, node.getClass().getSimpleName()));
+            }
+
+            if (target instanceof Leaf) {
+                throw new IllegalArgumentException(format("Target node [%s] must not be a leaf.", node));
+            }
+
+            return super._set(model, node, target, maybeOldValue);
+        }
+
+        @Override
+        protected GrammarTreeModel removeNode(
+                GrammarTreeModel model,
+                GrammarNode node,
+                GrammarNode target,
+                GrammarNode removedNode)
+        {
+            if (removedNode.equals(target)) {
+                throw new IllegalStateException(format("Node [%s] cannot be removed while being used as a target by [%s].",
+                                                       target, node));
+            }
+            else {
+                return super.removeNode(model, node, target, removedNode);
+            }
+        }
+
+        @Override
+        protected GrammarTreeModel replaceNode(
+                GrammarTreeModel model,
+                GrammarNode node,
+                GrammarNode target,
+                GrammarNode oldNode,
+                GrammarNode newNode)
+        {
+            if (oldNode.equals(target)) {
+                return super._set(model, node, newNode, Optional.of(target));
+            }
+            else {
+                return super.replaceNode(model, node, target, oldNode, newNode);
+            }
+        }
+    };
+
+    public static boolean hasLinks(GrammarTreeModel model, GrammarNode node) {
+        return model.nodes().stream().anyMatch(nd -> model.get(nd, TARGET).filter(node::equals).isPresent());
+    }
+
 
     private Keys() {}
 

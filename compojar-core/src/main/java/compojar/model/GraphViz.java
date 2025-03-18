@@ -25,9 +25,7 @@ public final class GraphViz {
                 .collect(toMapFromPairs((node, $) -> node,
                                         ($, i) -> "x" + i));
 
-        List<String> dot_nodeDefs = stream(dot_nodeNames,
-                                           (node, dot_name) -> "%s [label=\"%s\"]".formatted(dot_name, node.name()))
-                .toList();
+        List<String> dot_nodeDefs = stream(dot_nodeNames, (node, dot_name) -> defNode(model, node, dot_name)).toList();
 
         List<String> dot_edgeDefs = model
                 .nodes()
@@ -81,6 +79,20 @@ public final class GraphViz {
         """.formatted(String.join(";\n", dot_nodeDefs),
                       Stream.concat(dot_edgeDefs.stream(), dot_nextEdgeDefs.stream()).collect(joining(";\n")),
                       String.join(";\n", dot_ranks));
+    }
+
+    private static String defNode(GrammarTreeModel model, GrammarNode node, String dotName) {
+        var sb = new StringBuilder();
+
+        sb.append(dotName);
+
+        sb.append(" [label=\"%s\"]".formatted(node.name()));
+
+        if (model.has(node, TARGET)) {
+            sb.append(" [fillcolor=\"#cadef9\"]");
+        }
+
+        return sb.toString();
     }
 
     public static void toDotFile(GrammarTreeModel model, Path path) {
