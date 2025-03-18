@@ -2,6 +2,8 @@ package compojar.bnf;
 
 import java.util.Optional;
 
+import static compojar.util.Util.stream;
+
 record StandardVariable(CharSequence name, Metadata metadata) implements Variable {
 
     public StandardVariable(final CharSequence name) {
@@ -31,6 +33,13 @@ record StandardVariable(CharSequence name, Metadata metadata) implements Variabl
     @Override
     public boolean has(final Key<?> key) {
         return metadata.has(key);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Variable that
+                && name.equals(that.name())
+                && stream(metadata.map(), (k, v) -> that.getOpt(k).filter(v::equals).isPresent()).allMatch(b -> b);
     }
 
 }

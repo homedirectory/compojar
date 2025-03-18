@@ -27,6 +27,10 @@ public sealed interface Symbol
      */
     Symbol normalise();
 
+    default boolean normalEquals(Symbol symbol) {
+        return this == symbol || normalise().equals(symbol.normalise());
+    }
+
     /**
      * Returns an annotated version of this symbol using the specified key and value.
      */

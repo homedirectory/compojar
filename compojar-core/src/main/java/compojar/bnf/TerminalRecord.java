@@ -4,8 +4,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Objects;
 
-import static compojar.util.Util.append;
-import static compojar.util.Util.removeAll;
+import static compojar.util.Util.*;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.*;
 
@@ -57,9 +56,10 @@ final class TerminalRecord implements Terminal {
     @Override
     public boolean equals(Object obj) {
         return this == obj
-                || obj instanceof Terminal that
-                && name.equals(that.name())
-                && parameters.equals(that.getParameters());
+               || obj instanceof Terminal that
+                  && name.equals(that.name())
+                  && parameters.equals(that.getParameters())
+                  && stream(metadata.map(), (k, v) -> that.getOpt(k).filter(v::equals).isPresent()).allMatch(b -> b);
     }
 
     @Override
