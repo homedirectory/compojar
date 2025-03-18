@@ -315,8 +315,9 @@ public record GrammarTreeModel (
             return new GrammarTreeModel(newNodes,
                                         subRoot,
                                         filterKeys(attributes, (k, $) -> newNodes.contains(k)))
-                    .removeAttribute(PARENT, subRoot)
-                    .removeAttribute(NEXT, subRoot);
+                    // Low-level operations because the new tree does not contain these nodes anymore.
+                    ._removeAttribute(PARENT, subRoot)
+                    ._removeAttribute(NEXT, subRoot);
         }
     }
 
