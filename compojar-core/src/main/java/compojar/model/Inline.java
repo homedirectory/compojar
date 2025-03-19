@@ -63,10 +63,6 @@ public final class Inline {
                          return accModel
                                  .addNode(p)
                                  .set(p, PARENT, parent)
-                                 .pipe(m -> foldl2((accM, accNexts, next) -> accM.addCopyOf(next, TARGET).map2(pNext -> cons(pNext, accNexts)),
-                                                   m, List.<GrammarNode>of(),
-                                                   allNexts(m, parent))
-                                         .map((m_, pNexts) -> linkNext(m_, cons(p, pNexts.reversed()))))
                                  .set(child, PARENT, p)
                                  .pipe(m -> foldl2((accM, accNexts, next) -> accM.addCopyOf(next, TARGET).map2(newNext -> cons(newNext, accNexts)),
                                                    m, List.<GrammarNode>of(),
@@ -75,10 +71,8 @@ public final class Inline {
                      },
                      model,
                      model.get(node, CHILDREN).orElseGet(Set::of))
-                .removeAttribute(NEXT, parent)
                 .replaceNode(parent, new GrammarNode.Free(parent.name()))
                 .removeNodes(allNexts(model, node))
-                .removeNodes(allNexts(model, parent))
                 .removeNode(node);
     }
 

@@ -54,7 +54,7 @@ public class InlineTest {
     }
 
     @Test
-    public void inline_node_whose_parent_is_regular_node() {
+    public void inline_node_whose_parent_is_regular_node_01() {
         var inGrammar = new AbstractGrammar() {
             Variable E, Var, E1, E2, Add, Neg;
             Terminal one, two, plus, x, minus;
@@ -79,6 +79,65 @@ public class InlineTest {
                 return start(E)
                         .select(E, Var, E1)
                         .derive(Var, x)
+                        .select(E1, E1$1, E1$2)
+                        .derive(E1$1, Add, one, two)
+                        .derive(E1$2, Neg, one, two)
+                        .derive(Add, plus)
+                        .derive(Neg, minus)
+                        .$();
+            }
+        };
+
+        var inModel = BnfParser.parseBnf(inGrammar.bnf()).model();
+        var expectedModel = BnfParser.parseBnf(expectedGrammar.bnf()).model();
+
+        var nodeFactory = new TestNodeFactory() {
+            int n = 0;
+
+            @Override
+            public Full newNode(CharSequence nameHint) {
+                return new Full(nameHint + "$" + (++n));
+            }
+
+            @Override
+            public Free newFreeNode(CharSequence nameHint) {
+                return new Free(nameHint + "$" + (++n));
+            }
+        };
+
+        var inlinedModel = Inline.inline(inModel, nodeFactory);
+
+        assertTrue(structEquals(expectedModel, inlinedModel, eqOn(GrammarNode::name)));
+    }
+
+    @Test
+    public void inline_node_whose_parent_is_regular_node_02() {
+        var inGrammar = new AbstractGrammar() {
+            Variable E, Var, E0, E1, E2, Add, Neg;
+            Terminal one, two, plus, x, minus, end;
+
+            BNF bnf() {
+                return start(E)
+                        .select(E, Var, E0)
+                        .derive(Var, x)
+                        .derive(E0, E1, end)
+                        .derive(E1, E2, one, two)
+                        .select(E2, Add, Neg)
+                        .derive(Add, plus)
+                        .derive(Neg, minus)
+                        .$();
+            }
+        };
+
+        var expectedGrammar = new AbstractGrammar() {
+            Variable E, Var, E0, E1, E1$1, E1$2, Add, Neg;
+            Terminal one, two, plus, x, minus, end;
+
+            BNF bnf() {
+                return start(E)
+                        .select(E, Var, E0)
+                        .derive(Var, x)
+                        .derive(E0, E1, end)
                         .select(E1, E1$1, E1$2)
                         .derive(E1$1, Add, one, two)
                         .derive(E1$2, Neg, one, two)
