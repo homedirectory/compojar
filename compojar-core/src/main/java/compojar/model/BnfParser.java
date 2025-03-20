@@ -60,7 +60,12 @@ public final class BnfParser {
         var startRule = bnf.requireRuleFor(bnf.start());
         var root = makeNode(startRule);
         var initModel = new GrammarTreeModel(Set.of(root), root);
-        return parseRhs(bnf, startRule, root, new Result(initModel, Map.of(root, bnf.start())), Map.of(bnf.start(), root));
+        var result = parseRhs(bnf,
+                              startRule,
+                              root,
+                              new Result(initModel, Map.of(root, bnf.start())), Map.of(bnf.start(), root));
+        Validation.validate(result.model());
+        return result;
     }
 
     private static Result parseRhs(BNF bnf, Rule rule, GrammarNode lhsNode, Result result, Map<Symbol, GrammarNode> stack) {

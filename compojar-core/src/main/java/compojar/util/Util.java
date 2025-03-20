@@ -9,9 +9,14 @@ import static java.lang.Character.isUpperCase;
 import static java.lang.Character.toLowerCase;
 import static java.util.Collections.*;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toSet;
 
 public final class Util {
+
+    public static String join(Iterable<?> xs, String delimiter) {
+        return stream(xs).map(Objects::toString).collect(joining(delimiter));
+    }
 
     public static <X> List<X> cons(X x, Collection<? extends X> xs) {
         var list = new ArrayList<X>(1 + xs.size());

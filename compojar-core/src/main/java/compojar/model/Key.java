@@ -78,4 +78,8 @@ public abstract class Key<V> {
         return model;
     }
 
+    protected Validation.Result validate(GrammarTreeModel model, GrammarNode node, V attribute) {
+        return Validation.Result.ok();
+    }
+
 }

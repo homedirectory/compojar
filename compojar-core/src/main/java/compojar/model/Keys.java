@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import static compojar.model.Validation.Result.fail;
+import static compojar.model.Validation.Result.ok;
 import static compojar.util.Util.*;
 import static java.lang.String.format;
 
@@ -73,6 +75,19 @@ public final class Keys {
                 return super.replaceNode(model, node, parent, oldNode, newNode);
             }
         }
+
+        @Override
+        protected Validation.Result validate(GrammarTreeModel model, GrammarNode node, GrammarNode parent) {
+            return ok()
+                    .combine(node.equals(model.root())
+                            ? fail("Root node cannot have a parent. Root: [%s], parent: [%s].",
+                                   node, parent)
+                            : ok())
+                    .combine(parent instanceof Leaf
+                                     ? fail("Leaf node cannot be a parent node. Parent: [%s], child: [%s].",
+                                            parent, node)
+                                     : ok());
+        }
     };
 
     public static Stream<GrammarNode> ancestors(GrammarTreeModel model, GrammarNode node) {
@@ -125,6 +140,22 @@ public final class Keys {
         {
             return super._set(model, node, replace(children, oldNode, newNode), Optional.of(children));
         }
+
+        @Override
+        protected Validation.Result validate(GrammarTreeModel model, GrammarNode node, Set<GrammarNode> children)
+        {
+            return ok()
+                    .combine(node instanceof GrammarNode.Free && children.isEmpty()
+                                     ? fail("Free node [%s] cannot have empty children.", node)
+                                     : ok())
+                    .combine(node instanceof GrammarNode.Full && children.size() != 1
+                            ? fail("Full node [%s] must have exactly 1 child, but had %s: %s",
+                                   node, children.size(), children)
+                            : ok())
+                    .combine(node instanceof Leaf && !children.isEmpty()
+                            ? fail("Leaf node [%s] cannot have children.", node)
+                            : ok());
+        }
     };
 
     public static Stream<GrammarNode> allChildren(GrammarTreeModel model, GrammarNode node) {
@@ -166,6 +197,30 @@ public final class Keys {
             else {
                 return super.replaceNode(model, node, next, oldNode, newNode);
             }
+        }
+
+        @Override
+        protected Validation.Result validate(GrammarTreeModel model, GrammarNode node, GrammarNode next) {
+            return ok()
+                    .combine(node.equals(model.root())
+                            ? fail("Root node cannot have a next node. Root: [%s], next: [%s].",
+                                   node, next)
+                            : ok())
+                    .combine(model.has(next, PARENT)
+                                     ? fail("Next node cannot have a parent node. This: [%s], next: [%s], parent: [%s].",
+                                            node, next, model.getF(next, PARENT))
+                                     : ok())
+                    .combine(() -> {
+                        var allWithThisNext = model
+                                .nodes()
+                                .stream()
+                                .filter(nd -> model.get(nd, NEXT).filter(next::equals).isPresent())
+                                .toList();
+                        return List.of(node).equals(allWithThisNext)
+                                ? ok()
+                                : fail("Next node cannot be shared with other nodes. Next node [%s] is shared by [%s]",
+                                       next, Util.join(allWithThisNext, ", "));
+                    });
         }
     };
 
@@ -209,7 +264,7 @@ public final class Keys {
             }
 
             if (target instanceof Leaf) {
-                throw new IllegalArgumentException(format("Target node [%s] must not be a leaf.", node));
+                throw new IllegalArgumentException(format("Target node [%s] cannot be a leaf.", node));
             }
 
             return super._set(model, node, target, maybeOldValue);
@@ -245,6 +300,22 @@ public final class Keys {
             else {
                 return super.replaceNode(model, node, target, oldNode, newNode);
             }
+        }
+
+        @Override
+        protected Validation.Result validate(GrammarTreeModel model, GrammarNode node, GrammarNode target) {
+            return ok()
+                    .combine(node.equals(model.root())
+                                     ? fail("Root node cannot have a target node. Root: [%s], target: [%s].",
+                                            node, target)
+                                     : ok())
+                    .combine(node instanceof Leaf
+                                     ? ok()
+                                     : fail("Link node [%s] with target [%s] must be a leaf node.",
+                                            node, target))
+                    .combine(target instanceof Leaf
+                                     ? fail("Target node [%s] linked by [%s] cannot be a leaf.")
+                                     : ok());
         }
     };
 
