@@ -322,20 +322,32 @@ public record GrammarTreeModel (
         if (root.equals(subRoot)) {
             return this;
         } else {
-            var subNodes = nodesBelow(subRoot).collect(toSet());
-            var newNodes = insert(subNodes, subRoot);
-            return new GrammarTreeModel(newNodes,
+            // Next nodes of subRoot are excluded.
+            var subNodes = searchNodes(subRoot, nd -> Stream.concat(get(nd, CHILDREN).orElseGet(Set::of).stream(),
+                                                                    nd.equals(subRoot) ? Stream.of() : get(nd, NEXT).stream()));
+            return new GrammarTreeModel(subNodes,
                                         subRoot,
-                                        filterKeys(attributes, (k, $) -> newNodes.contains(k)))
+                                        filterKeys(attributes, (k, $) -> subNodes.contains(k)))
                     // Low-level operations because the new tree does not contain these nodes anymore.
                     ._removeAttribute(PARENT, subRoot)
                     ._removeAttribute(NEXT, subRoot);
         }
     }
 
-    private Stream<GrammarNode> nodesBelow(GrammarNode node) {
-        return allChildren(this, node)
-                .flatMap(c -> Stream.concat(Stream.of(c), Keys.allNexts(this, c)));
+    private Set<GrammarNode> searchNodes(GrammarNode node, Function<? super GrammarNode, Stream<? extends GrammarNode>> fn) {
+        return searchNodes(Set.of(node), fn, Set.of());
+    }
+
+    private Set<GrammarNode> searchNodes(
+            Set<GrammarNode> unvisited,
+            Function<? super GrammarNode, Stream<? extends GrammarNode>> fn,
+            Set<GrammarNode> acc)
+    {
+        return unvisited.isEmpty()
+                ? acc
+                : searchNodes(unvisited.stream().flatMap(fn).collect(toSet()),
+                              fn,
+                              concatSet(unvisited, acc));
     }
 
     public GrammarTreeModel include(GrammarTreeModel model) {
