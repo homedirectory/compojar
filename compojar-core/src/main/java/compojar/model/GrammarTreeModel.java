@@ -216,6 +216,18 @@ public record GrammarTreeModel (
         return t2(addNode(copy).copyAttributes(node, copy, keys), copy);
     }
 
+    public T2<GrammarTreeModel, List<GrammarNode>> addCopiesOf(Collection<? extends GrammarNode> nodes, Key... keys) {
+        assertContainsAll(nodes);
+
+        return foldl2((acc, copies, node) -> {
+                          var copy = node.copy();
+                          return t2(acc.addNode(copy).copyAttributes(node, copy, keys), cons(copy, copies));
+                      },
+                      this, List.<GrammarNode>of(),
+                      nodes.stream())
+                .map2(List::reversed);
+    }
+
     <V> Optional<V> _getAttribute(GrammarNode node, Key<V> key) {
         return Optional.ofNullable((V) attributes.getOrDefault(node, Map.of()).get(key));
     }
@@ -340,22 +352,38 @@ public record GrammarTreeModel (
         return replaceNode(this.root, newRoot);
     }
 
+    private GrammarTreeModel removeTargetAttributes(GrammarNode target) {
+        var links = linksTo(this, target).toList();
+        return foldl((m, ln) -> m.removeAttribute(TARGET, ln), this, links);
+    }
+
     public GrammarTreeModel pruneSubtreeWithNext(GrammarNode node) {
         var result = get(node, NEXT).map(this::pruneSubtreeWithNext).orElse(this);
 
         result = foldl(GrammarTreeModel::pruneSubtreeWithNext,
-                       result,
+                       result.removeTargetAttributes(node),
                        get(node, CHILDREN).orElseGet(Set::of));
 
         return result.removeNode(node);
     }
 
     public GrammarTreeModel pruneSubtree(GrammarNode node) {
-        var result = foldl(GrammarTreeModel::pruneSubtree,
-                           this,
+        // First remove all links to `node` so that the subtree can be removed.
+        var result = foldl(GrammarTreeModel::pruneSubtreeWithNext,
+                           removeTargetAttributes(node),
                            get(node, CHILDREN).orElseGet(Set::of));
 
         return result.removeNode(node);
+    }
+
+    public GrammarTreeModel replaceSubtree(GrammarNode node, GrammarTreeModel subModel) {
+        var maybeNext = get(node, NEXT);
+        var maybeParent = get(node, PARENT);
+
+        return pruneSubtree(node)
+                .include(subModel)
+                .maybeSet(subModel.root(), PARENT, maybeParent)
+                .maybeSet(subModel.root(), NEXT, maybeNext);
     }
 
     public GrammarTreeModel retainNodes(Set<? extends GrammarNode> nodes) {

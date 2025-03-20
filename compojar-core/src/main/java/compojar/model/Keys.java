@@ -323,6 +323,9 @@ public final class Keys {
         return model.nodes().stream().anyMatch(nd -> model.get(nd, TARGET).filter(node::equals).isPresent());
     }
 
+    public static Stream<GrammarNode> linksTo(GrammarTreeModel model, GrammarNode node) {
+        return model.nodes().stream().filter(nd -> model.get(nd, TARGET).filter(node::equals).isPresent());
+    }
 
     private Keys() {}
 

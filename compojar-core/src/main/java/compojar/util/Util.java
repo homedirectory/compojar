@@ -686,6 +686,16 @@ public final class Util {
                 : StreamSupport.stream(Spliterators.spliteratorUnknownSize(xs.iterator(), 0), false);
     }
 
+    public static <X> X fixpoint(X init, Function<? super X, ? extends X> fn) {
+        var next = fn.apply(init);
+        if (next.equals(init)) {
+            return next;
+        }
+        else {
+            return fixpoint(next, fn);
+        }
+    }
+
     // ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
     private Util() {};
