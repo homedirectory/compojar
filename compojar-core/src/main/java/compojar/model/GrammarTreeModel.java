@@ -330,7 +330,8 @@ public record GrammarTreeModel (
                                         filterKeys(attributes, (k, $) -> subNodes.contains(k)))
                     // Low-level operations because the new tree does not contain these nodes anymore.
                     ._removeAttribute(PARENT, subRoot)
-                    ._removeAttribute(NEXT, subRoot);
+                    ._removeAttribute(NEXT, subRoot)
+                    ._removeAttribute(TARGET, subRoot);
         }
     }
 
