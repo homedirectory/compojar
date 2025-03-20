@@ -72,14 +72,13 @@ public class InlineTest {
         };
 
         var expectedGrammar = new AbstractGrammar() {
-            Variable E, Var, E1, E1$1, E1$2, Add, Neg;
+            Variable E, Var, E1$1, E1$2, Add, Neg;
             Terminal one, two, plus, x, minus;
 
             BNF bnf() {
                 return start(E)
-                        .select(E, Var, E1)
+                        .select(E, Var, E1$1, E1$2)
                         .derive(Var, x)
-                        .select(E1, E1$1, E1$2)
                         .derive(E1$1, Add, one, two)
                         .derive(E1$2, Neg, one, two)
                         .derive(Add, plus)
@@ -130,15 +129,15 @@ public class InlineTest {
         };
 
         var expectedGrammar = new AbstractGrammar() {
-            Variable E, Var, E0, E1, E1$1, E1$2, Add, Neg;
+            Variable E, Var, E0$3, E0$4, E1, E1$1, E1$2, Add, Neg;
             Terminal one, two, plus, x, minus, end;
 
             BNF bnf() {
                 return start(E)
-                        .select(E, Var, E0)
+                        .select(E, Var, E0$3, E0$4)
                         .derive(Var, x)
-                        .derive(E0, E1, end)
-                        .select(E1, E1$1, E1$2)
+                        .derive(E0$3, E1$1, end)
+                        .derive(E0$4, E1$2, end)
                         .derive(E1$1, Add, one, two)
                         .derive(E1$2, Neg, one, two)
                         .derive(Add, plus)
@@ -193,17 +192,16 @@ public class InlineTest {
         };
 
         var expectedGrammar = new AbstractGrammar() {
-            Variable E, E1, E1$1, E1$2, Var, Sub1, E2b, E2a, E2a1, E2a2;
+            Variable E, E1$1, E1$2, Var, E2b, E2a1, E2a2, Sub1;
             Terminal sqrt, x, sub1, e2b, e2a1, e2a2;
 
             BNF bnf() {
                 return start(E)
-                        .select(E, E2b, E1, E2a1, E2a2)
+                        .select(E, E1$1, E1$2, E2a1, E2a2, E2b)
                         .derive(E2b, e2b)
-                        .select(E1, E1$1, E1$2)
                         .derive(E1$1, Var, sqrt)
-                        .derive(Var, x)
                         .derive(E1$2, Sub1, sqrt)
+                        .derive(Var, x)
                         .derive(Sub1, sub1)
                         .derive(E2a1, e2a1)
                         .derive(E2a2, e2a2)
@@ -254,6 +252,47 @@ public class InlineTest {
         var inlinedModel = Inline.inline(inModel, new TestNodeFactory());
 
         assertTrue(structEquals(inModel, inlinedModel, eqOn(GrammarNode::name)));
+    }
+
+    @Test
+    public void inline_free_node_with_previous_and_next_nodes() {
+        var g = new AbstractGrammar() {
+            Variable S, E, Var, Add;
+            Terminal begin, end, plus, x;
+
+            BNF bnf() {
+                return start(S)
+                        .derive(S, begin, E, end)
+                        .select(E, Var, Add)
+                        .derive(Var, x)
+                        .derive(Add, Var, plus, Var)
+                        .$();
+            }
+        };
+
+        var expectedG = new AbstractGrammar() {
+            Variable S, S$1, S$2, Var, Add;
+            Terminal begin, end, plus, x;
+
+            BNF bnf() {
+                return start(S)
+                        .select(S, S$1, S$2)
+                        .derive(S$1, begin, Add, end)
+                        .derive(S$2, begin, Var, end)
+                        .derive(Var, x)
+                        .derive(Add, Var, plus, Var)
+                        .$();
+            }
+        };
+
+        var result = BnfParser.parseBnf(g.bnf());
+        var inModel = result.model();
+
+        var expectedModel = BnfParser.parseBnf(expectedG.bnf()).model();
+
+        var inlinedModel = Inline.inline(inModel, new TestNodeFactory());
+
+        assertTrue(structEquals(expectedModel, inlinedModel, eqOn(GrammarNode::name)));
     }
 
 }
